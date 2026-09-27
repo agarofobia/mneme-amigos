@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+*.log
+.env*
+!.env.example
+# Runtime state of an instance. The store it governs is the user's folder, never this repo.
+.mneme/
+# Worktrees of the build agents (never part of the product).
+.claude/

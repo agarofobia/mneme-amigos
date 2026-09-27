@@ -1,0 +1,24 @@
+{
+  "packFormat": 1,
+  "name": "astrolabe-verdigris",
+  "version": "0.1.0",
+  "description": "The astrolabe after a century at sea: the same instrument, only the color changes. Verdigris is the active mark, oxidized bronze the lines.",
+  "author": "Mneme",
+  "license": "MIT",
+  "extends": "astrolabe",
+  "tokens": {
+    "--mn-bg": "#07100f",
+    "--mn-surface": "#0b1716",
+    "--mn-surface-2": "#11211f",
+    "--mn-ink": "#e4ece4",
+    "--mn-ink-2": "#a9b8b0",
+    "--mn-ink-3": "#6d7d76",
+    "--mn-line": "#2a3a35",
+    "--mn-line-strong": "#3f5750",
+    "--mn-accent": "#5fb49c",
+    "--mn-accent-ink": "#07100f",
+    "--mn-focus": "#9ee0cb",
+    "--mn-ok": "#c9a34e",
+    "--mn-writing": "#9db4e0"
+  }
+}

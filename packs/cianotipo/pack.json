@@ -1,0 +1,31 @@
+{
+  "packFormat": 2,
+  "name": "cianotipo",
+  "version": "0.1.0",
+  "description": "Ejemplo para la GUI 3D: la cámara oscura revelada en cianotipo. Sólo tokens y escena, sin CSS: muestra qué se puede cambiar sin tocar una regla.",
+  "author": "Mneme",
+  "license": "MIT",
+  "tokens": {
+    "--fondo": "#06101a",
+    "--tinta": "#e3edf5",
+    "--tinta-2": "rgba(227, 237, 245, .64)",
+    "--tinta-3": "rgba(227, 237, 245, .38)",
+    "--acento": "#9fd3f0",
+    "--filete": "rgba(227, 237, 245, .14)",
+    "--vineta": "rgba(6, 16, 26, .88)",
+    "--velo-rgb": "6, 16, 26",
+    "--etiqueta": "rgba(227, 237, 245, .84)",
+    "--sombra-texto": "#02070d",
+    "--superficie": "rgba(227, 237, 245, .05)",
+    "--ventana-fondo": "rgba(8, 19, 31, .9)",
+    "--ventana-borde": "rgba(227, 237, 245, .13)"
+  },
+  "escena": {
+    "fondo": "#040a12",
+    "cielo": { "intensidad": 1.1, "bajo": "#040a12", "alto": "#0a1726", "calida": "#0b1f36", "fria": "#08222e", "onda": "#061222" },
+    "estrellas": { "color": "#cfe3f2", "opacidad": 0.4 },
+    "linea": "#cfe0ee",
+    "luz": "#e8f6ff",
+    "tintes": ["#8FB8D6", "#A9C6DA", "#7FA9C4", "#B5D0E0", "#92BFC9", "#A3B6CF", "#C6D8E4"]
+  }
+}

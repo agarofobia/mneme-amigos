@@ -1,0 +1,18 @@
+#!/bin/sh
+# Local gate: nothing is committed that leaks a secret, does not typecheck, or fails a test.
+# Versioned in .githooks/ and enabled with:  npm run hooks:install
+# Deliberately awkward escape for a real emergency:  git -c core.hooksPath=/dev/null commit ...
+echo "[pre-commit] secret scan..."
+node scripts/scan-secrets.mjs --staged || exit 1
+echo "[pre-commit] typecheck..."
+npm run -s typecheck || { echo "[pre-commit] does not typecheck: commit blocked."; exit 1; }
+echo "[pre-commit] tests..."
+log="${TMPDIR:-/tmp}/pre-commit-tests-$$.log"
+if ! npm run -s test > "$log" 2>&1; then
+  # Say WHICH test failed: a blocked commit that hides its reason cannot be diagnosed.
+  echo "[pre-commit] a test fails: commit blocked. Failing tests:"
+  grep -E "^not ok|^# (tests|pass|fail)" "$log" | head -20
+  echo "[pre-commit] full output: $log"
+  exit 1
+fi
+rm -f "$log"

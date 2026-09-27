@@ -1,0 +1,2250 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mneme</title>
+<!-- Boceto de la GUI v2 (mapa: docs/diseno/gui-mapa.md). Dirección A · cámara oscura, con la
+     partitura de B (Artu, 25/09 13:59). Andamio: la app se construye aparte y esto se tira
+     (abanico, paso 5.4). Los datos (data.json) salen de export.mjs y son de quien lo corre. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya:wght@500;600&family=Alegreya+Sans:wght@400;500&family=Alegreya+Sans+SC:wght@400;500&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+  /* Dirección A · cámara oscura (Locke): la interfaz es luz proyectada en un cuarto oscuro,
+     no un objeto. Nada va en cajas; la legibilidad la da una viñeta. Un solo acento, tungsteno,
+     para lo que entra, el foco y lo elegido. */
+  :root {
+    --fondo: #070605;
+    --tinta: #ECE5D8;
+    --tinta-2: rgba(236, 229, 216, .62);
+    --tinta-3: rgba(236, 229, 216, .36);
+    --acento: #F3C27A;
+    --filete: rgba(236, 229, 216, .13);
+    --vineta: rgba(7, 6, 5, .88);
+    --velo-rgb: 7, 6, 5;              /* el velo del menú y el del primer paso: el fondo, en R, G, B */
+    --etiqueta: rgba(236, 229, 216, .82); /* los nombres flotando en el espacio */
+    --sombra-texto: #000;             /* lo que despega el texto del espacio; en un pack claro, claro */
+    --superficie: rgba(236, 229, 216, .05); /* el código, el editor, el mensaje del primer paso */
+    --serif: "Alegreya", Georgia, serif;
+    --sans: "Alegreya Sans", system-ui, sans-serif;
+    --sc: "Alegreya Sans SC", "Alegreya Sans", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --borde: 28px;
+    --texto: 14px;
+    --titulo: 26px;
+    /* el velo del menú: se difumina hacia el espacio, sin borde ni corte */
+    --velo-opacidad: .9;
+    --velo-desenfoque: 6px;
+    --velo-ancho: 520px;
+    /* el espacio (los lee el dibujo; el ajuste fino los mueve como a cualquier token) */
+    --neb-brillo: 1;
+    --neb-absorcion: .7;
+    --neb-desenfoque: 110;
+    --cuadro-tamano: 1;
+    --linea-principal: .18;
+    --linea-secundaria: .15;
+    /* el material de las líneas (Artu 25/09 17:30: «ahora son sólo líneas que se iluminan») */
+    --linea-ancho: 1.4;       /* px del núcleo; cada material se abre desde ahí */
+    --linea-radio: 12;        /* cuánto alrededor de la luz se enciende el wikilink que recorre, en unidades del espacio (Artu 25/09 18:53: «más pequeño») */
+    --linea-material: 1;      /* intensidad del material: 0 lo apaga y queda el hilo */
+    --luz-ilumina: .35;
+    --halo: 1;
+    --galaxia-brillo: 1;
+    --voz-alto: 9px;
+    /* las ventanas (la nota y el primer paso): la única caja de la interfaz, porque Artu la pidió
+       ventana (26/09 22:15). Callada: un filete, un velo y sombra; un pack la puede volver tarjeta */
+    --ventana-fondo: rgba(10, 9, 7, .9);
+    --ventana-borde: rgba(236, 229, 216, .12);
+    --ventana-radio: 6px;
+    --ventana-sombra: 0 30px 90px rgba(0, 0, 0, .65);
+    --ventana-desenfoque: 12px;
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fondo); color: var(--tinta); font: var(--texto)/1.45 var(--sans); }
+  canvas#espacio { display: block; }
+  .hud { position: fixed; pointer-events: none; }
+  .mono { font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .sc { font-family: var(--sc); font-size: 13px; color: var(--tinta-2); letter-spacing: .02em; }
+  button { background: none; border: 0; color: var(--tinta-2); font: inherit; padding: 1px 0; cursor: pointer; position: relative; transition: color .18s; }
+  button:hover { color: var(--tinta); }
+  button:focus-visible, a:focus-visible { outline: 1px solid var(--acento); outline-offset: 3px; }
+  button[aria-pressed="true"] { color: var(--tinta); }
+  /* lo elegido: más claro y con un punto de luz arriba (A) */
+  button[aria-pressed="true"]::before { content: ""; position: absolute; left: 50%; top: -4px; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: var(--acento); box-shadow: 0 0 6px var(--acento); }
+  button[data-rec]::after { content: "◆"; font-size: 9px; margin-left: 3px; color: var(--tinta-3); vertical-align: 1px; }
+  button:disabled { opacity: .3; cursor: default; }
+  a { color: var(--tinta); text-decoration: none; }
+  a:hover { color: var(--acento); }
+
+  #tl { position: fixed; top: var(--borde); left: var(--borde); max-width: calc(var(--velo-ancho) - 2 * var(--borde)); z-index: 3; }
+  #tl h1 { font: 500 var(--titulo)/1 var(--serif); margin: 0 0 6px; letter-spacing: .01em; }
+  #tl p { margin: 0; color: var(--tinta-2); font-size: 13px; }
+  #tl .pista { color: var(--tinta-3); margin-top: 4px; }
+  /* El menú: palabras, sin iconos ni cajas; la abierta lleva el punto de luz */
+  #menu { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 16px; }
+  #menu button { font-size: 15px; }
+  #menu button[aria-expanded="true"] { color: var(--tinta); }
+  #menu button[aria-expanded="true"]::before { content: ""; position: absolute; left: 50%; top: -4px; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: var(--acento); box-shadow: 0 0 6px var(--acento); }
+  #menu button.alarma { color: var(--acento); }
+
+  /* El velo: la columna del menú se difumina hacia el espacio. Viñeta + un desenfoque que también
+     se desvanece (máscara): no hay borde ni corte. --velo-desenfoque a 0 lo deja en viñeta sola. */
+  #velo { position: fixed; top: 0; bottom: 0; left: 0; width: var(--velo-ancho); pointer-events: none; opacity: 0; transition: opacity .35s ease; z-index: 1;
+    background: linear-gradient(to right, rgba(var(--velo-rgb),var(--velo-opacidad)) 0%, rgba(var(--velo-rgb),var(--velo-opacidad)) 52%, rgba(var(--velo-rgb),0) 100%);
+    backdrop-filter: blur(var(--velo-desenfoque)); -webkit-backdrop-filter: blur(var(--velo-desenfoque));
+    -webkit-mask-image: linear-gradient(to right, #000 45%, transparent 100%); mask-image: linear-gradient(to right, #000 45%, transparent 100%); }
+  body.menu-abierto #velo { opacity: 1; }
+  /* la barra de scroll no se ve hasta pasar el mouse: una línea clara vertical cortaba la columna */
+  #seccion { position: fixed; left: var(--borde); top: 0; bottom: var(--borde); width: calc(var(--velo-ancho) * .62); overflow: auto; z-index: 2; display: none;
+    scrollbar-color: transparent transparent; scrollbar-width: thin; transition: scrollbar-color .3s;
+    /* empieza debajo del nombre y del menú (acomodarSeccion): el texto que sube se desvanece antes
+       de llegar a ellos, y el de abajo también, sin corte. Antes pasaba por detrás del menú y se encimaban */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+    padding: 22px 0 22px; box-sizing: border-box; }
+  #seccion:hover { scrollbar-color: var(--filete) transparent; }
+  body.menu-abierto #seccion { display: block; }
+  body.menu-abierto #partitura { opacity: 0; pointer-events: none; } /* al .06 se veía fantasma bajo el texto */
+  .sec { display: none; }
+  .sec.abierta { display: block; }
+  .sec h2 { font: 500 22px var(--serif); margin: 0 0 4px; }
+  .sec .lead { color: var(--tinta-3); margin: 0 0 16px; font-size: 13px; }
+  .sec h3 { font: 400 13px var(--sc); color: var(--tinta-2); margin: 20px 0 6px; letter-spacing: .02em; }
+  .sec p { margin: 6px 0; }
+  .sec .paso { margin: 10px 0; }
+  .sec .paso .sc { display: block; }
+  .sec .num { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--tinta); }
+  .sec .dim { color: var(--tinta-3); }
+  .sec ul { list-style: none; padding: 0; margin: 0; }
+  .sec li { margin: 5px 0; }
+  .sec .registro li { display: grid; grid-template-columns: 7.5em 1fr; gap: 10px; }
+  .sec input[type=search] { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--filete); color: var(--tinta); font: 16px var(--serif); padding: 4px 0; outline: none; }
+  .sec input[type=search]:focus { border-bottom-color: var(--acento); }
+  /* El orden visual, ahora adentro de El orden: palabras en una grilla rótulo | opciones */
+  #ordenVisual { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 8px; align-items: baseline; }
+  #ordenVisual .ops { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  #ordenVisual .fila { display: contents; }
+  #reset { grid-column: 2; justify-self: start; color: var(--tinta-3); font-size: 13px; margin-top: 4px; }
+  /* El ajuste fino (abanico, paso 5): un slider por token */
+  .ajuste { display: grid; grid-template-columns: 9.5em 1fr 4.2em 1.2em; gap: 6px 10px; align-items: center; margin: 4px 0; }
+  .ajuste label { color: var(--tinta-2); font-size: 13px; }
+  .ajuste.cambiado label { color: var(--acento); }
+  .ajuste output { font: 11px var(--mono); text-align: right; color: var(--tinta); }
+  .ajuste button { color: var(--tinta-3); font-size: 13px; }
+  .ajuste input[type=range] { width: 100%; accent-color: var(--acento); }
+  .ajuste input[type=color] { width: 100%; height: 18px; background: none; border: 0; padding: 0; }
+  .acciones { display: flex; gap: 16px; margin: 14px 0 6px; }
+  #copiado, #configCopiada { color: var(--tinta-3); font-size: 12.5px; white-space: pre-wrap; font-family: var(--mono); }
+  /* El orden (mapa ①.d) es la sección de trabajo: se ensancha, y el velo la sigue */
+  body.ancha #velo { width: calc(var(--velo-ancho) * 1.3); }
+  body.ancha #seccion { width: calc(var(--velo-ancho) * 1.3 * .62); }
+  #usos { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+  #usos button { font-size: 15px; text-align: left; }
+  #usos .parece { color: var(--tinta-3); font-size: 12.5px; margin-left: 8px; }
+  #usoDetalle { margin: 8px 0 0; }
+  #usoDetalle .medido { font-size: 12.5px; }
+  .cambio { color: var(--acento) !important; }
+  .antes { display: block; color: var(--tinta-3); font-size: 12px; }
+  .consecuencias li { font-size: 13px; color: var(--tinta-2); }
+  .consecuencias li::before { content: "→ "; color: var(--tinta-3); }
+  #catalogo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  #catalogo > div > .sc { display: block; margin-bottom: 4px; }
+  #catalogo details { margin: 2px 0 2px 10px; }
+  #catalogo summary { list-style: none; cursor: pointer; color: var(--tinta-3); }
+  #catalogo summary::-webkit-details-marker { display: none; }
+  #catalogo summary:hover { color: var(--tinta-2); }
+  #catalogo .on summary { color: var(--tinta); }
+  #catalogo .on summary::before { content: ""; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--acento); box-shadow: 0 0 5px var(--acento); margin: 0 6px 2px -10px; }
+  #catalogo .estado { font: 12px var(--sc); color: var(--tinta-3); }
+  #catalogo details p { font-size: 12.5px; color: var(--tinta-3); margin: 2px 0 8px; }
+  .grupo-clave { margin-top: 12px; }
+  .clave { display: grid; grid-template-columns: 13.2em 1fr 1.1em; gap: 1px 10px; align-items: baseline; margin: 4px 0; }
+  .clave > .k { font: 11px var(--mono); color: var(--tinta-2); overflow-wrap: anywhere; }
+  .clave.cambiada > .k { color: var(--acento); }
+  .clave input { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--filete); color: var(--tinta); font: 12px var(--mono); padding: 1px 0; outline: none; }
+  .clave input:focus { border-bottom-color: var(--acento); }
+  .clave .ops { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .clave .ops button { font-size: 13px; }
+  .clave > button.volver { color: var(--tinta-3); font-size: 13px; }
+  .clave .sub, .clave .mal { grid-column: 2 / 4; font-size: 12px; color: var(--tinta-3); }
+  .clave .mal { color: var(--acento); }
+
+  /* La partitura (de B): abajo a la izquierda */
+  #partitura { position: fixed; left: var(--borde); bottom: var(--borde); width: min(560px, 46vw); padding: 50px 60px 0 0;
+    background: radial-gradient(ellipse at 0% 100%, var(--vineta) 38%, rgba(var(--velo-rgb),0) 74%); }
+  #partitura canvas { display: block; width: 100%; cursor: default; }
+  #partitura .pie { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 6px; min-height: 20px; }
+  #ahora { color: var(--tinta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #ahora .quien { font-family: var(--mono); font-size: 11px; }
+  #ahora .grupo { color: var(--tinta-3); }
+  #partitura .ctl { display: flex; gap: 10px; flex: none; }
+  #partitura .vacia { color: var(--tinta-2); padding: 18px 0 6px; }
+
+  /* Etiquetas y tooltip: texto de luz, sin caja */
+  #labels .l { position: absolute; left: 0; top: 0; font: 500 13px var(--serif); color: var(--etiqueta); text-shadow: 0 0 8px var(--sombra-texto), 0 0 3px var(--sombra-texto); white-space: nowrap; will-change: transform; }
+  #labels .l i { font: 12px var(--sans); color: var(--tinta-3); font-style: normal; }
+  #tip { display: none; transform: translate(16px, 12px); text-shadow: 0 0 10px var(--sombra-texto), 0 0 4px var(--sombra-texto); max-width: 380px; }
+  #tip b { font: 500 16px var(--serif); display: block; }
+  #tip small { color: var(--tinta-2); font-size: 12.5px; }
+
+  /* Ocultar el menú (Artu, 26/09 22:15): queda el espacio solo y este botón en la esquina */
+  #tl .cabeza { display: flex; align-items: baseline; gap: 14px; }
+  #ocultar { font-size: 12.5px; color: var(--tinta-3); }
+  #ocultar:hover { color: var(--tinta); }
+  body.sin-menu #tl h1, body.sin-menu #stats, body.sin-menu #hint, body.sin-menu #menu,
+  body.sin-menu #seccion, body.sin-menu #velo, body.sin-menu #partitura { display: none !important; }
+
+  /* Las ventanas: la nota (antes una columna a la derecha) y el primer paso */
+  .ventana { position: fixed; z-index: 4; display: flex; flex-direction: column; box-sizing: border-box;
+    background: var(--ventana-fondo); border: 1px solid var(--ventana-borde); border-radius: var(--ventana-radio); box-shadow: var(--ventana-sombra);
+    backdrop-filter: blur(var(--ventana-desenfoque)); -webkit-backdrop-filter: blur(var(--ventana-desenfoque)); }
+  .ventana[hidden] { display: none; }
+  .ventana .barra { display: flex; align-items: flex-start; gap: 18px; padding: 18px 20px 12px 24px; border-bottom: 1px solid var(--filete); cursor: grab; user-select: none; }
+  .ventana .barra:active { cursor: grabbing; }
+  .ventana .titulos { flex: 1; min-width: 0; }
+  .ventana h2 { font: 500 26px/1.1 var(--serif); margin: 0 0 4px; overflow-wrap: anywhere; }
+  .ventana .ruta { color: var(--tinta-3); font-size: 12.5px; overflow-wrap: anywhere; }
+  .ventana .cerrar { font-size: 15px; color: var(--tinta-3); padding: 0 2px; }
+  .ventana .cerrar:hover { color: var(--tinta); }
+  .pestanas { display: flex; gap: 14px; align-self: center; }
+  .pestanas button { font-size: 14px; }
+  #ventanaNota { right: max(var(--borde), 4vw); top: 7vh; width: min(780px, 58vw); height: min(86vh, 920px); }
+  #ventanaNota .cuerpo { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 210px; }
+  #ventanaNota .principal { min-height: 0; overflow: auto; padding: 18px 24px 24px; scrollbar-width: thin; scrollbar-color: var(--filete) transparent; }
+  #ventanaNota .lado { min-height: 0; overflow: auto; padding: 18px 18px 18px 16px; border-left: 1px solid var(--filete); font-size: 13px; scrollbar-width: thin; scrollbar-color: var(--filete) transparent; }
+  #ventanaNota .lado h3 { font: 400 12.5px var(--sc); color: var(--tinta-2); margin: 16px 0 5px; letter-spacing: .02em; }
+  #ventanaNota .lado h3:first-child { margin-top: 0; }
+  #ventanaNota .lado ul { list-style: none; padding: 0; margin: 0; }
+  #ventanaNota .lado li { margin: 3px 0; overflow-wrap: anywhere; }
+  #ventanaNota .lado li .grupo { color: var(--tinta-3); }
+  #ventanaNota .ev { display: flex; flex-direction: column; }
+  #ventanaNota .ev .que { color: var(--tinta-2); }
+  .aviso { color: var(--tinta-3); font-size: 12.5px; margin: 0 0 12px; }
+  .aviso.borrador { color: var(--acento); }
+  /* el texto de la nota: tipografía de lectura, nada de cajas */
+  .md { font: 15px/1.6 var(--serif); color: var(--tinta); max-width: 66ch; overflow-wrap: anywhere; }
+  .md h1, .md h2, .md h3, .md h4 { font-family: var(--serif); font-weight: 500; line-height: 1.2; margin: 1.3em 0 .4em; }
+  .md h1 { font-size: 24px; } .md h2 { font-size: 20px; } .md h3 { font-size: 17px; } .md h4 { font-size: 15px; }
+  .md > :first-child { margin-top: 0; }
+  .md p, .md ul, .md ol, .md blockquote, .md pre, .md table { margin: .6em 0; }
+  .md ul, .md ol { padding-left: 1.3em; }
+  .md li { margin: .2em 0; }
+  .md li:has(> input[type=checkbox]) { list-style: none; margin-left: -1.3em; }
+  .md input[type=checkbox] { accent-color: var(--acento); margin-right: 6px; }
+  .md a { color: var(--acento); }
+  .md a:hover { text-decoration: underline; }
+  .md .sin-nota { color: var(--tinta-3); border-bottom: 1px dotted var(--tinta-3); }
+  .md code { font: 12.5px var(--mono); background: var(--superficie); padding: 1px 4px; border-radius: 3px; }
+  .md pre { background: var(--superficie); padding: 10px 12px; border-radius: 4px; overflow: auto; }
+  .md pre code { background: none; padding: 0; }
+  .md blockquote { margin-left: 0; padding-left: 14px; border-left: 2px solid var(--filete); color: var(--tinta-2); }
+  .md table { border-collapse: collapse; font: 13px/1.4 var(--sans); display: block; overflow-x: auto; }
+  .md th, .md td { border-bottom: 1px solid var(--filete); padding: 4px 10px 4px 0; text-align: left; vertical-align: top; }
+  .md th { font-weight: 500; color: var(--tinta-2); }
+  .md hr { border: 0; border-top: 1px solid var(--filete); margin: 1.4em 0; }
+  .md details.meta { font: 12px var(--mono); color: var(--tinta-3); margin: 0 0 14px; }
+  .md details.meta summary { cursor: pointer; font: 12.5px var(--sans); }
+  .md details.meta pre { font-size: 11.5px; white-space: pre-wrap; }
+  /* el editor: el texto crudo, y las herramientas como palabras (el menú no usa iconos) */
+  #notaEditor { display: flex; flex-direction: column; height: 100%; }
+  #notaEditor[hidden] { display: none; }
+  .herramientas { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 10px; }
+  .herramientas button { font-size: 13px; }
+  .herramientas .sep { color: var(--tinta-3); }
+  #notaFuente { flex: 1; min-height: 240px; width: 100%; box-sizing: border-box; resize: none; background: var(--superficie); color: var(--tinta);
+    border: 1px solid var(--filete); border-radius: 4px; padding: 12px 14px; font: 13px/1.55 var(--mono); outline: none; tab-size: 2; caret-color: var(--acento);
+    scrollbar-width: thin; scrollbar-color: var(--filete) transparent; }
+  #notaFuente:focus { border-color: var(--acento); }
+  .pie-editor { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-top: 10px; }
+  .pie-editor .estado { color: var(--tinta-3); font-size: 12.5px; margin-right: auto; }
+  .pie-editor .estado.cambiado { color: var(--acento); }
+  .pie-editor .explica { flex-basis: 100%; color: var(--tinta-3); font-size: 12px; margin: 2px 0 0; }
+  /* el primer paso: chica y al centro, con un velo detrás */
+  #primerVelo { position: fixed; inset: 0; z-index: 5; background: rgba(var(--velo-rgb), .6); }
+  #primerVelo[hidden] { display: none; }
+  #primerPaso { z-index: 6; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100vw - 32px)); padding: 26px 28px 22px; }
+  #primerPaso h2 { margin-bottom: 12px; }
+  #primerPaso p { margin: 0 0 10px; color: var(--tinta-2); }
+  #primerPaso .mensaje { font: 15px/1.5 var(--serif); color: var(--tinta); background: var(--superficie); border: 1px solid var(--filete); border-radius: 4px; padding: 12px 14px; margin: 14px 0; user-select: all; }
+  #primerPaso .acciones { justify-content: space-between; align-items: baseline; margin: 6px 0 0; }
+  #primerPaso .copiar { color: var(--acento); font-size: 15px; }
+  #primerPaso .ok { color: var(--tinta-3); font-size: 12.5px; }
+  #primerPaso .archivo { color: var(--tinta-3); font-size: 12px; margin: 12px 0 0; overflow-wrap: anywhere; }
+  #primerPaso .archivo:empty { display: none; }
+  /* Opciones → los packs: una lista de palabras, como el resto del menú */
+  .lista-packs { list-style: none; padding: 0; margin: 4px 0 8px; }
+  .lista-packs li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 5px 0; }
+  .lista-packs .de { color: var(--tinta-3); font-size: 12.5px; }
+  .lista-packs .desc { flex-basis: 100%; color: var(--tinta-3); font-size: 12.5px; }
+  .lista-packs .roto { color: var(--acento); font-size: 12.5px; }
+  .lista-packs .borrar { color: var(--tinta-3); font-size: 12.5px; }
+  .pack-nuevo { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 8px 12px; align-items: baseline; margin: 10px 0 4px; }
+  .pack-nuevo input { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--filete); color: var(--tinta); font: 13px var(--sans); padding: 2px 0; outline: none; }
+  .pack-nuevo input:focus { border-bottom-color: var(--acento); }
+  .punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+  #estado { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 0 20px; }
+  #estado p { color: var(--tinta-2); margin: 6px 0; }
+  #estado code { font-family: var(--mono); color: var(--tinta); }
+  #labels, #tip { z-index: 0; }
+  #partitura { z-index: 1; transition: opacity .3s; }
+  /* hasta 1100 px la columna de al lado no entra: va abajo, corta */
+  @media (max-width: 1100px) {
+    #ventanaNota { width: min(640px, 64vw); }
+    #ventanaNota .cuerpo { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    #ventanaNota .lado { border-left: 0; border-top: 1px solid var(--filete); max-height: 26vh; }
+  }
+  @media (max-width: 760px) {
+    #ventanaNota { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; height: 74vh; }
+    #ventanaNota .cuerpo { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    #ventanaNota .lado { border-left: 0; border-top: 1px solid var(--filete); max-height: 22vh; }
+  }
+  @media (max-width: 760px) { :root { --velo-ancho: 100vw; } #partitura { width: calc(100vw - 2 * var(--borde)); } #seccion, body.ancha #seccion { width: calc(100vw - 2 * var(--borde)); } body.ancha #velo { width: 100vw; } #catalogo { grid-template-columns: 1fr; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+  "marked": "https://cdn.jsdelivr.net/npm/marked@14.1.4/lib/marked.esm.js",
+  "dompurify": "https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.es.mjs"
+} }
+</script>
+</head>
+<body>
+<div id="labels" class="hud" style="inset:0"></div>
+<div id="velo"></div>
+<header id="tl"><div class="cabeza"><h1>Mneme</h1><button id="ocultar" aria-pressed="false" title="Ocultar el menú y la partitura (tecla h)">ocultar</button></div><p id="stats">se está formando la mente…</p><p class="pista" id="hint"></p>
+  <nav id="menu" aria-label="Secciones">
+    <button data-sec="buscar" aria-expanded="false">buscar</button><button data-sec="orden" aria-expanded="false">el orden</button><button data-sec="analisis" aria-expanded="false">análisis</button><button data-sec="salud" aria-expanded="false">salud</button><button data-sec="perfil" aria-expanded="false">perfil</button><button data-sec="opciones" aria-expanded="false">opciones</button>
+  </nav>
+</header>
+<div id="seccion">
+  <section class="sec" data-sec="buscar" aria-label="Buscar">
+    <h2>Buscar</h2><p class="lead">En la app busca como la IA (léxico + embeddings) y se encienden los cuadros que recibiría. En el boceto, filtra por nombre.</p>
+    <input type="search" id="q" placeholder="escribí…" autocomplete="off">
+    <ul id="resultados"></ul>
+  </section>
+  <section class="sec" data-sec="orden" aria-label="El orden">
+    <h2>El orden</h2><p class="lead">Cómo se organiza el contexto, y dónde se arma otro. Lo que toques acá es un borrador sobre la configuración vigente: se copia, no se aplica solo.</p>
+    <h3>lo que tenés</h3>
+    <div id="tenes"></div>
+    <h3>para qué la usás · ◆ recomendado</h3>
+    <div id="usos"></div>
+    <div id="usoDetalle"></div>
+    <h3>el recorrido de una consulta</h3>
+    <div id="recorrido"></div>
+    <h3>cómo lee · el catálogo</h3>
+    <p class="dim" style="font-size:12.5px;margin-top:0">Las formas de leer y de vectorizar que se hablaron el 24/09, y dónde está cada una. La luz marca lo que usa el borrador; tocá una para ver qué hace.</p>
+    <div id="catalogo"></div>
+    <h3>orden visual · ◆ recomendado</h3>
+    <div id="ordenVisual">
+      <div class="fila"><span class="sc">profundidad</span><span class="ops"><button data-k="depth" data-v="order">orden</button><button data-k="depth" data-v="time">tiempo</button><button data-k="depth" data-v="weight">peso</button></span></div>
+      <div class="fila"><span class="sc">forma</span><span class="ops"><button data-k="shape" data-v="regions">regiones</button><button data-k="shape" data-v="sphere">esfera</button><button data-k="shape" data-v="galaxies">galaxias</button></span></div>
+      <div class="fila"><span class="sc">agrupar por</span><span class="ops"><button data-k="grouping" data-v="auto" title="La carpeta; baja un nivel en la que tenga más del 25 % de las notas">carpeta</button><button data-k="grouping" data-v="top" title="Sólo la carpeta de arriba">carpeta de arriba</button><button data-k="grouping" data-v="tipo" title="El metadato «tipo» del frontmatter">metadato «tipo»</button></span></div>
+      <div class="fila"><span class="sc">centro</span><span class="ops"><button data-k="center" data-v="name" title="Las notas que por su nombre son un índice: «_Algo», index, inicio, home, un MOC o «… - índice»">índices por nombre</button><button data-k="center" data-v="auto" title="Las que enlazan a 30 notas o más (4× la mediana)">automático</button><button data-k="center" data-v="none">ninguno</button></span></div>
+      <div class="fila"><span class="sc">líneas</span><span class="ops"><button data-k="lines" data-v="main" title="No pasan por un índice y además son mutuas o se mencionan 2+ veces; las demás, atenuadas">principales</button><button data-k="lines" data-v="group" title="Las que unen notas del mismo grupo">del mismo grupo</button><button data-k="lines" data-v="all">todas</button></span></div>
+      <div class="fila"><span class="sc">material</span><span class="ops"><button data-k="material" data-v="hilo" title="Lo de hoy: un hilo de luz fino">hilo</button><button data-k="material" data-v="laser" title="Un núcleo blanco caliente con un halo apretado; un pulso corre a lo largo">láser</button><button data-k="material" data-v="polvo" title="Motas que titilan y derivan de una nota a la otra">polvo estelar</button><button data-k="material" data-v="estado" title="Polvo celeste mientras sus notas están bien; se transforma en la línea de Petrova, roja, cuando a una le pasa algo (una escritura sin autor o una frenada) y vuelve a celeste cuando una sesión la escribe bien">polvo → Petrova</button><button data-k="material" data-v="petrova" title="La línea de Petrova de Project Hail Mary: un filamento infrarrojo que ondula, con astrófagos que viajan por él">línea de Petrova</button></span></div>
+      <div class="fila"><span class="sc">nombres</span><span class="ops"><button data-k="text" data-v="hover">al pasar</button><button data-k="text" data-v="near">de cerca</button><button data-k="text" data-v="always">siempre</button></span></div>
+      <button id="reset">volver al recomendado</button>
+    </div>
+    <h3>configuración técnica</h3>
+    <p class="dim" style="font-size:12.5px;margin-top:0">Todas las claves de <span class="mono">.mneme/config.json</span>, salvo <span class="mono">embeddings.options</span> (puede llevar credenciales). Cada una se edita en su lugar.</p>
+    <div id="tecnica"></div>
+    <h3>qué pasa si lo aplicás</h3>
+    <ul class="consecuencias" id="consecuencias"></ul>
+    <div class="acciones"><button id="copiarConfig">copiar config.json</button><button id="volverVigente">volver a la vigente</button><button id="volverRec">volver al recomendado</button></div>
+    <div id="configCopiada"></div>
+  </section>
+  <section class="sec" data-sec="analisis" aria-label="Análisis"><h2>Análisis</h2><p class="lead">Lo que se midió de la búsqueda: el embedder, el índice y el registro de cada medición. Sólo lectura.</p><div id="analisis"></div></section>
+  <section class="sec" data-sec="salud" aria-label="Salud"><h2>Salud</h2><p class="lead">Lo de <span class="mono">audit</span> y <span class="mono">doctor</span>. Si algo se pasa, la palabra «salud» del menú se enciende.</p><div id="salud"></div></section>
+  <section class="sec" data-sec="perfil" aria-label="Perfil"><h2>Perfil</h2><p class="lead">Quién sos para esta raíz y quién más escribe en ella.</p><div id="perfil"></div>
+    <div id="tusReglas" hidden><h3>tus reglas</h3><p class="dim" style="font-size:12.5px">El cuestionario que arma tus primeras reglas se ofrece la primera vez que se abre Mneme.</p><button id="verPrimerPaso">volver a ver el primer paso</button></div></section>
+  <section class="sec" data-sec="opciones" aria-label="Opciones">
+    <h2>Opciones</h2><p class="lead">Lo de la GUI, no lo de Mneme (eso es El orden).</p>
+    <h3>apariencia · los packs</h3>
+    <p class="dim" style="font-size:12.5px;margin-top:0">Un pack cambia la piel entera: colores, letras, el fondo del espacio. <a href="guia-packs.md" target="_blank" rel="noopener">La guía para hacer uno</a>.</p>
+    <ul id="packs" class="lista-packs"></ul>
+    <p class="dim" id="packInfo" style="font-size:12.5px"></p>
+    <div class="pack-nuevo" id="packNuevo"><input id="packNombre" placeholder="nombre-del-pack" aria-label="Nombre del pack nuevo" autocomplete="off" spellcheck="false"><input id="packDescripcion" placeholder="qué es, en una línea" aria-label="Descripción del pack nuevo" autocomplete="off"><button id="crearPack">crear con lo que ves</button></div>
+    <div class="acciones"><button id="guardarAjuste" hidden>guardar el ajuste fino en este pack</button><button id="copiarPack">copiar el pack.json</button><button id="copiarCarpeta">copiar la carpeta de tus packs</button></div>
+    <div id="packCopiado" class="dim" style="font-size:12.5px;white-space:pre-wrap"></div>
+    <h3>movimiento</h3><div class="ops" style="display:flex;gap:12px"><button data-op="rm" data-v="0">normal</button><button data-op="rm" data-v="1">reducido</button></div>
+    <h3>nitidez</h3><div class="ops" style="display:flex;gap:12px"><button data-op="dpr" data-v="1">1×</button><button data-op="dpr" data-v="1.5">1,5×</button><button data-op="dpr" data-v="2">2×</button></div>
+    <h3>ajuste fino</h3>
+    <p class="dim" style="font-size:13px">Un control por token. Movelo hasta que te cierre. Para que quede, guardalo en un pack tuyo (apariencia, arriba): si no, se pierde al recargar. «copiar :root» copia sólo los que cambiaron, con el valor de antes al lado.</p>
+    <div id="ajustes"></div>
+    <div class="acciones"><button id="copiarRoot">copiar :root</button><button id="resetTodo">volver todo a los tokens</button></div>
+    <div id="copiado"></div>
+  </section>
+</div>
+<div id="tip" class="hud"></div>
+<!-- La nota, en una ventana (Artu, 26/09 22:15). Se arrastra de la barra; Esc o ✕ la cierra. -->
+<div id="ventanaNota" class="ventana" role="dialog" aria-labelledby="notaTitulo" hidden>
+  <header class="barra">
+    <div class="titulos"><h2 id="notaTitulo"></h2><div class="ruta" id="notaRuta"></div></div>
+    <nav class="pestanas" aria-label="Modo"><button data-modo="leer" aria-pressed="true">leer</button><button data-modo="editar" aria-pressed="false">editar</button></nav>
+    <button class="cerrar" id="cerrarNota" aria-label="Cerrar la nota (esc)" title="Cerrar (esc)">✕</button>
+  </header>
+  <div class="cuerpo">
+    <div class="principal">
+      <div id="notaLeer"><p class="aviso" id="notaAviso" hidden></p><article class="md" id="notaTexto"></article></div>
+      <div id="notaEditor" hidden>
+        <div class="herramientas" role="toolbar" aria-label="Herramientas de edición">
+          <button data-h="negrita" title="Ctrl+B">negrita</button><button data-h="cursiva" title="Ctrl+I">cursiva</button><button data-h="titulo">título</button><span class="sep">·</span><button data-h="lista">lista</button><button data-h="tarea">tarea</button><button data-h="cita">cita</button><span class="sep">·</span><button data-h="enlace" title="Ctrl+K">enlace</button><button data-h="wiki" title="Un enlace a otra nota">[[nota]]</button><button data-h="codigo">código</button>
+        </div>
+        <textarea id="notaFuente" spellcheck="false" aria-label="El texto de la nota, en markdown"></textarea>
+        <div class="pie-editor">
+          <span class="estado" id="editorEstado">sin cambios</span>
+          <button id="copiarNota">copiar el texto</button><button id="descartarNota">descartar los cambios</button><button id="guardarNota" disabled>guardar</button>
+          <p class="explica">En la app, «guardar» escribe por Mneme con autor <span class="mono">gui</span>: queda en el historial, se puede restaurar y la guardia avisa si otra sesión tiene la nota tomada. El boceto no tiene servidor que escriba: el borrador vive en esta pestaña.</p>
+        </div>
+      </div>
+    </div>
+    <aside class="lado" id="notaLado" aria-label="Sobre la nota"></aside>
+  </div>
+</div>
+<!-- El primer paso (Artu, 26/09 22:15: «que la ventana aparezca dentro de mneme»). -->
+<div id="primerVelo" hidden></div>
+<div id="primerPaso" class="ventana" role="dialog" aria-modal="true" aria-labelledby="primerTitulo" hidden>
+  <h2 id="primerTitulo"></h2>
+  <div id="primerExplica"></div>
+  <div class="mensaje" id="primerMensaje"></div>
+  <div class="acciones"><button class="copiar" id="primerCopiar"></button><span class="ok" id="primerOk" aria-live="polite"></span><button id="primerCerrar"></button></div>
+  <p class="archivo" id="primerArchivo"></p>
+</div>
+
+<section id="partitura" aria-label="Actividad">
+  <canvas id="score" height="120" aria-label="Partitura: una voz por sesión"></canvas>
+  <div class="pie"><div id="ahora"></div>
+    <div class="ctl"><button data-k="play" aria-pressed="false">pausa</button><button data-k="speed" data-v="1">1×</button><button data-k="speed" data-v="3">3×</button></div></div>
+</section>
+
+<div id="estado" role="status"></div>
+
+<script>
+  // Si three.js no llega (sin internet: viene de una CDN) el módulo no corre y la página quedaría
+  // negra sin decir nada. La app lo trae empaquetado; el boceto, al menos, lo dice.
+  setTimeout(() => {
+    if (window.__boceto) return;
+    const e = document.getElementById('estado');
+    e.style.display = 'grid';
+    e.innerHTML = '<div><p>No se pudo cargar el dibujo del espacio.</p><p>¿Sin internet? El boceto trae three.js de una CDN; la app lo va a traer adentro.</p></div>';
+  }, 12000);
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { USOS, LECTORES, VECTORES, DECISORES, ESTADOS, aplicarUso, diferencias, parcheDe, validar, cambiaEmbedder, usa } from './usos.mjs';
+
+const $ = (id) => document.getElementById(id);
+let RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── El pack (la piel), antes de leer los tokens ─────────────────────────────
+// Un pack es datos (pack.json + CSS + fuentes, nunca un script). Lo valida y lo aplana el servidor
+// del boceto con el mismo cargador de la app (src/gui/packs.js, packFormat 2); acá sólo se aplica:
+// pisa los tokens de :root y lo que el dibujo lee de ESCENA. Sin pack, es la cámara oscura.
+const PACK_KEY = 'mneme-boceto-pack';
+const leerLS = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const escribirLS = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
+const packPedido = new URLSearchParams(location.search).get('pack') ?? leerLS(PACK_KEY);
+let PACK = null, packError = null;
+if (packPedido) {
+  try {
+    const r = await fetch(`pack/${encodeURIComponent(packPedido)}.json`);
+    const j = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(j?.error ?? `el servidor respondió ${r.status} (¿la abriste con mneme galaxia?)`);
+    PACK = j;
+    const st = document.createElement('style'); st.id = 'pack';
+    st.textContent = `:root{${Object.entries(PACK.tokens ?? {}).map(([k, v]) => `${k}:${v}`).join(';')}}\n${PACK.css ?? ''}`;
+    document.head.append(st);
+  } catch (e) { packError = `«${packPedido}»: ${e.message}`; }
+}
+// Los tokens de :root: la interfaz los usa por CSS y el dibujo los lee acá. Un solo contrato,
+// que el ajuste fino mueve y que un pack puede reemplazar (regla 10: el valor vive en su token).
+const TK = {};
+const rootStyle = document.documentElement.style;
+function leerTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  const n = (t) => parseFloat(cs.getPropertyValue(t));
+  Object.assign(TK, {
+    brillo: n('--neb-brillo'), absorcion: n('--neb-absorcion'), desenfoque: n('--neb-desenfoque'), cuadro: n('--cuadro-tamano'),
+    lineaP: n('--linea-principal'), lineaS: n('--linea-secundaria'), ilumina: n('--luz-ilumina'), halo: n('--halo'),
+    ancho: n('--linea-ancho'), radio: n('--linea-radio'), material: n('--linea-material'),
+    galaxia: n('--galaxia-brillo'), voz: n('--voz-alto'), acento: cs.getPropertyValue('--acento').trim(),
+  });
+}
+leerTokens();
+const HINTS = {
+  time: 'Adelante, lo último que se tocó. Al fondo, lo más viejo.',
+  'order.regions': 'Cada nube es un grupo.',
+  'order.sphere': 'Una sola esfera: cada grupo es un territorio.',
+  'order.galaxies': 'Cada grupo es una galaxia; en su núcleo, lo más conectado.',
+  weight: 'Al centro, lo más conectado. Afuera, lo que casi nadie enlaza.',
+};
+// El dibujo del espacio, en datos: todo color que el dibujo usa y la interfaz no (los de la interfaz son
+// los tokens de :root). Es la parte `escena` de un pack: el pack pisa sólo lo que nombra, y lo que el
+// dibujo no conoce se avisa en Opciones → apariencia (no se ignora callado).
+const ESCENA_BASE = {
+  fondo: '#050403',
+  // las nebulosas y las ondas (Artu, 26/09 22:15): bajo/alto es el degradé de base; cálida, fría y onda
+  // se suman encima multiplicadas por la intensidad. 0 las apaga y queda el degradé
+  cielo: { intensidad: 1.25, bajo: '#050403', alto: '#0c0907', calida: '#160f09', fria: '#070d0f', onda: '#060503' },
+  estrellas: { cantidad: 900, color: '#d8cbb4', opacidad: 0.42 },
+  linea: '#D8CCBA',   // el hilo de las líneas: tinta cálida
+  luz: '#FFE6BE',     // la cabeza de cada luz
+  // A: los grupos en tintes apagados de una franja angosta, para que la mente se lea como una
+  // sola imagen. Sin violeta (seña de «hecho con IA», lente de diseño 25/09).
+  tintes: ['#9DB4A9', '#B8A58A', '#A9B7C6', '#C2A08F', '#A7AE8A', '#8FAFB5', '#C4AE7E'],
+  // El color dice quién (de B): una voz por sesión, legible sobre negro (L ~75, saturación media).
+  voces: ['#E8A87C', '#8FCBBE', '#E3C66A', '#8EBFE6', '#E39A96', '#B2D08A', '#7ECFD6', '#E6B79C', '#A4C99D', '#EFA2BE', '#CBC28A', '#A2B8EC', '#D2A688', '#9ED8B4', '#D8B070'],
+  script: '#7E97A6',   // una nota generada la escribe su script: no es «alguien»
+  sinAutor: '#9A938A', // una escritura por fuera, sin autor
+  sinSesion: '#8A847A',
+};
+function mezclarEscena(base, extra, ruta, desconocidas) {
+  const out = structuredClone(base);
+  for (const [k, v] of Object.entries(extra ?? {})) {
+    const b = base[k];
+    if (b === undefined) { desconocidas.push(ruta + k); continue; }
+    if (b && typeof b === 'object' && !Array.isArray(b)) out[k] = mezclarEscena(b, v, `${ruta}${k}.`, desconocidas);
+    else if (Array.isArray(b) !== Array.isArray(v) || typeof v !== typeof b || (Array.isArray(v) && !v.length)) desconocidas.push(`${ruta}${k} (no es del tipo esperado)`);
+    else out[k] = v;
+  }
+  return out;
+}
+const escenaDesconocida = [];
+const ESCENA = mezclarEscena(ESCENA_BASE, PACK?.escena, '', escenaDesconocida);
+// un color de la escena como lo escribió el pack, sin la conversión a lineal de THREE.Color: el cielo
+// escribe gl_FragColor directo, y así el hex que se ve en pack.json es el que se ve en pantalla
+const v3 = (hex) => { const c = parseInt(hex.slice(1), 16); return new THREE.Vector3((c >> 16 & 255) / 255, (c >> 8 & 255) / 255, (c & 255) / 255); };
+const CALIDO = new THREE.Color(ESCENA.luz);
+const VERBOS = { read: 'leyó', edit: 'editó', write: 'escribió', external: 'cambió por fuera, sin autor', restore: 'restauró', move: 'movió', denied: 'fue frenada al escribir', script: 'regeneró' };
+// Una nota generada la escribe su script (export.mjs → kind «script», what = el script): no es «alguien».
+const quienDe = (ev) => ev.kind === 'script' ? (ev.what || 'un script') : ev.kind === 'external' || !ev.s ? 'alguien' : ev.s.slice(0, 8);
+const colorDe = (ev) => ev.kind === 'script' ? ESCENA.script : ev.kind === 'external' || !ev.s ? ESCENA.sinAutor : colorVoz(ev.s);
+
+const REC = { depth: 'order', shape: 'regions', grouping: 'auto', center: 'auto', lines: 'main', material: 'estado', text: 'hover', speed: '1' };
+// El material de las líneas (mapa ⑥.9): Artu eligió el 25/09 19:11 polvo celeste que se transforma en Petrova cuando algo está mal.
+const MATERIAL = { hilo: 0, laser: 1, polvo: 2, petrova: 3, estado: 4 };
+const ARTU = { ...REC, center: 'name' }; // lo que eligió Artu el 25/09 12:16
+const KEY = 'mneme-boceto-visual';
+let guardado = {};
+try { guardado = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { guardado = {}; }
+const state = { ...REC, ...guardado, playing: true, sesion: null }; // arranca en el recomendado (ARTU es la elección de Artu, 25/09)
+const save = () => { try { const { playing, sesion, ...rest } = state; localStorage.setItem(KEY, JSON.stringify(rest)); } catch { /* sin almacenamiento: no se recuerda, nada más */ } };
+
+function mostrarEstado(html) {
+  const e = $('estado'); e.style.display = 'grid'; e.innerHTML = `<div>${html}</div>`;
+  for (const id of ['partitura', 'tl', 'seccion']) $(id).style.display = 'none';
+}
+
+// ── Los datos (con los estados del mapa ④) ──────────────────────────────────
+const modo = new URLSearchParams(location.search).get('datos'); // vacio | sin-actividad | error: para probar estados
+let data;
+try {
+  if (modo === 'error') throw new Error('error simulado (?datos=error)');
+  const res = await fetch('data.json');
+  if (!res.ok) throw new Error(`data.json respondió ${res.status}`);
+  data = await res.json();
+  if (!Array.isArray(data?.nodes) || !Array.isArray(data?.events)) throw new Error('data.json no tiene la forma esperada');
+} catch (e) {
+  window.__boceto = { estado: 'error' };
+  mostrarEstado(`<p>No se pudieron leer las notas: ${String(e.message).replace(/</g, '&lt;')}</p><p>Volvé a abrirla con <code>mneme galaxia</code> (y si sigue, <code>mneme doctor</code>).</p>`);
+  throw e;
+}
+if (modo === 'vacio') data = { ...data, nodes: [], edges: [], events: [], sessions: [] };
+if (modo === 'sin-actividad') data = { ...data, events: [], sessions: [] };
+if (!data.nodes.length) {
+  window.__boceto = { estado: 'vacio' };
+  mostrarEstado('<p>Todavía no hay notas acá.</p><p>Corré <code>mneme init --adopt</code> en tu carpeta de notas.</p>');
+  throw new Error('sin notas');
+}
+const probe = document.createElement('canvas');
+if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) {
+  window.__boceto = { estado: 'sin-3d' };
+  mostrarEstado('<p>Este navegador no puede dibujar el espacio (no tiene WebGL).</p>');
+  throw new Error('sin webgl');
+}
+
+const N = data.nodes.length;
+const hhmm = (t) => new Date(t).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const cuando = (t) => new Date(t).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+$('stats').textContent = data.events.length
+  ? `${N} notas · ${data.edges.length} conexiones · ${data.events.length} eventos, ${cuando(data.events[0].t)} → ${cuando(data.events.at(-1).t)}`
+  : `${N} notas · ${data.edges.length} conexiones · sin actividad todavía`;
+
+// Nombres repetidos (31 de 349 el 25/09): se aclaran con su grupo en todos lados.
+const cuenta = new Map();
+for (const n of data.nodes) cuenta.set(n.name, (cuenta.get(n.name) ?? 0) + 1);
+const nombreGrupo = (i) => data.groupings[state.grouping][data.nodes[i].group[state.grouping]] ?? '';
+const nombre = (i) => data.nodes[i].name;
+const repetido = (i) => cuenta.get(data.nodes[i].name) > 1;
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+// ── Escena ──────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setSize(innerWidth, innerHeight);
+renderer.domElement.id = 'espacio';
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+// El fondo del espacio (Artu, 26/09 22:15): nebulosas y ondas tenues, de poco contraste, en una esfera
+// lejana que acompaña a la cámara. Al orbitar, el fondo se mueve con la vista; al acercarse, no
+// (está siempre «en el infinito»). Reemplaza al degradé plano, que era de pantalla y no se movía.
+scene.background = new THREE.Color(ESCENA.fondo);
+const C = ESCENA.cielo;
+const cieloMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 }, uInt: { value: C.intensidad }, uBajo: { value: v3(C.bajo) }, uAlto: { value: v3(C.alto) }, uCalida: { value: v3(C.calida) }, uFria: { value: v3(C.fria) }, uOnda: { value: v3(C.onda) } },
+  side: THREE.BackSide, depthWrite: false, depthTest: false,
+  vertexShader: `varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform float uTime; uniform float uInt; uniform vec3 uBajo, uAlto, uCalida, uFria, uOnda; varying vec3 vDir;
+    float h3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+    float n3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mix(h3(i), h3(i + vec3(1, 0, 0)), f.x), mix(h3(i + vec3(0, 1, 0)), h3(i + vec3(1, 1, 0)), f.x), f.y),
+                 mix(mix(h3(i + vec3(0, 0, 1)), h3(i + vec3(1, 0, 1)), f.x), mix(h3(i + vec3(0, 1, 1)), h3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+    float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int k = 0; k < 5; k++) { s += a * n3(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
+    void main() {
+      vec3 d = normalize(vDir);
+      float t = uTime * 0.01;
+      // dos capas de nebulosa: una cálida y amplia, otra fría y más fina, que derivan muy despacio
+      float a = fbm(d * 2.2 + vec3(t, 0.0, -t));
+      float b = fbm(d * 4.5 + vec3(-t * 1.3, t, 0.0) + a);
+      float calida = smoothstep(0.45, 0.85, a);
+      float fria = smoothstep(0.55, 0.9, b) * (1.0 - calida * 0.6);
+      // ondas: bandas suaves que la nebulosa deforma y que corren lento
+      float onda = pow(0.5 + 0.5 * sin(d.y * 9.0 + a * 6.0 + uTime * 0.05), 6.0) * smoothstep(0.35, 0.75, b);
+      vec3 base = mix(uBajo, uAlto, 0.5 + 0.5 * d.y);
+      vec3 col = base + (uCalida * calida + uFria * fria + uOnda * onda) * uInt;
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+});
+const cielo = new THREE.Mesh(new THREE.SphereGeometry(4200, 48, 32), cieloMat);
+cielo.renderOrder = -10; cielo.frustumCulled = false; scene.add(cielo);
+{ // estrellas lejanas: pocas y tenues, en la misma esfera (se mueven con ella)
+  const n = Math.max(0, Math.min(5000, Math.round(ESCENA.estrellas.cantidad))), pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u) * 4000;
+    pos.set([r * Math.cos(th), u * 4000, r * Math.sin(th)], i * 3);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({ color: new THREE.Color(ESCENA.estrellas.color), size: 1.4, sizeAttenuation: false, transparent: true, opacity: ESCENA.estrellas.opacidad, depthWrite: false, depthTest: false });
+  const estrellas = new THREE.Points(g, m); estrellas.renderOrder = -9; estrellas.frustumCulled = false; cielo.add(estrellas);
+}
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 1, 5000);
+camera.position.set(0, 60, 1200);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.06; controls.autoRotateSpeed = 0.16;
+controls.minDistance = 12; controls.maxDistance = 1600;
+const HOME = {
+  time: { pos: new THREE.Vector3(0, 26, 250), target: new THREE.Vector3(0, 0, -150) },
+  'order.regions': { pos: new THREE.Vector3(0, 90, 380), target: new THREE.Vector3(0, 0, 0) },
+  'order.sphere': { pos: new THREE.Vector3(0, 80, 480), target: new THREE.Vector3(0, 0, 0) },
+  'order.galaxies': { pos: new THREE.Vector3(0, 150, 600), target: new THREE.Vector3(0, 0, 0) },
+  weight: { pos: new THREE.Vector3(0, 70, 300), target: new THREE.Vector3(0, 0, 0) },
+};
+const view = () => (state.depth === 'order' ? `order.${state.shape}` : state.depth);
+controls.target.copy(HOME[view()].target);
+const foco = () => camera.position.distanceTo(controls.target);
+
+// ── Datos por nodo ──────────────────────────────────────────────────────────
+const adj = Array.from({ length: N }, () => []);
+const edgeIndex = new Map();
+data.edges.forEach(([a, b], e) => { adj[a].push(b); adj[b].push(a); edgeIndex.set(a < b ? `${a},${b}` : `${b},${a}`, e); });
+const size = data.nodes.map((n) => 5 + 2.4 * Math.log1p(n.deg));
+const rnd01 = (i) => ((i * 2654435761) % 1000) / 1000;
+const seedPrev = Float32Array.from(data.nodes, (_, i) => rnd01(i));
+const seedNext = Float32Array.from(seedPrev);
+const forma = new Float32Array(N).fill(1); // 1 = quieta; <1 = la imagen se rehace (una escritura)
+const formaExt = new Uint8Array(N);        // la última escritura fue externa (frente gris)
+const isHub = (i) => (state.center === 'name' ? data.nodes[i].hub.name : state.center === 'auto' ? data.nodes[i].hub.auto : false);
+const layoutKey = () => (state.depth === 'order' ? `${state.grouping}.${state.shape}` : state.depth);
+const groupOf = (i) => data.nodes[i].group[state.grouping];
+const escala = (i) => (isHub(i) ? 1.35 : 1);
+function targetOf(i) {
+  if (isHub(i)) {
+    // El centro: los índices en una esfera chica pero con aire. Antes estaban en un disco de
+    // 4-10 unidades: de lejos una mancha, y 6 de 17 no se podían señalar (lente de mecánica).
+    const hubs = []; for (let j = 0; j < N; j++) if (isHub(j)) hubs.push(j);
+    const k = hubs.indexOf(i), n = hubs.length;
+    const R = 14 + 3.2 * Math.sqrt(n);
+    const phi = Math.acos(1 - 2 * (k + 0.5) / n), th = Math.PI * (1 + Math.sqrt(5)) * k;
+    const c = state.depth === 'time' ? new THREE.Vector3(0, 0, -60) : new THREE.Vector3();
+    return c.add(new THREE.Vector3(R * Math.sin(phi) * Math.cos(th), R * Math.cos(phi) * 0.8, R * Math.sin(phi) * Math.sin(th)));
+  }
+  return new THREE.Vector3(...data.nodes[i].layout[layoutKey()]);
+}
+let targets = data.nodes.map((_, i) => targetOf(i));
+const cur = targets.map((v) => v.clone());
+const pos = cur.map((v) => v.clone());
+const glow = new Float32Array(N), fade = new Float32Array(N), hoverGlow = new Float32Array(N), filtro = new Float32Array(N).fill(1);
+const busqueda = new Uint8Array(N); let hayBusqueda = false; // lo que encontró Buscar
+const colorGrupo = data.nodes.map(() => new THREE.Color());
+function recolor() {
+  // los tintes por tamaño de grupo: los grupos grandes, los más distintos entre sí
+  const tam = new Map();
+  for (let i = 0; i < N; i++) tam.set(groupOf(i), (tam.get(groupOf(i)) ?? 0) + 1);
+  const orden = [...tam.keys()].sort((a, b) => tam.get(b) - tam.get(a));
+  const tinte = new Map(orden.map((g, k) => [g, ESCENA.tintes[k % ESCENA.tintes.length]]));
+  for (let i = 0; i < N; i++) colorGrupo[i].set(tinte.get(groupOf(i)));
+}
+recolor();
+
+// ── Los cuadros: nebulosa que emite y absorbe (imagen, no luz), ordenados de atrás hacia adelante ──
+const MAXL = 16;
+const plane = new THREE.PlaneGeometry(1, 1);
+const fg = new THREE.InstancedBufferGeometry();
+fg.index = plane.index; fg.setAttribute('position', plane.getAttribute('position')); fg.setAttribute('uv', plane.getAttribute('uv'));
+fg.instanceCount = N;
+const inst = (n) => new THREE.InstancedBufferAttribute(new Float32Array(N * n), n).setUsage(THREE.DynamicDrawUsage);
+const aOffset = inst(3), aSize = inst(1), aSeed2 = inst(2), aColor = inst(3), aLive = inst(4);
+fg.setAttribute('aOffset', aOffset); fg.setAttribute('aSize', aSize); fg.setAttribute('aSeed2', aSeed2); fg.setAttribute('aColor', aColor); fg.setAttribute('aLive', aLive);
+const frameMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 }, uFocus: { value: 400 },
+    uLP: { value: Array.from({ length: MAXL }, () => new THREE.Vector3()) },
+    uLC: { value: Array.from({ length: MAXL }, () => new THREE.Vector3()) },
+    uLN: { value: 0 },
+    uEmit: { value: 1 }, uAbs: { value: 0.7 }, uDof: { value: 110 }, uLitK: { value: 0.35 },
+  },
+  transparent: true, depthWrite: false,
+  // premultiplicado: emite su luz y tapa (en parte) lo que tiene atrás (lente de efectos, P2)
+  blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+  vertexShader: `
+    attribute vec3 aOffset; attribute float aSize; attribute vec2 aSeed2; attribute vec3 aColor; attribute vec4 aLive;
+    uniform vec3 uLP[${MAXL}]; uniform vec3 uLC[${MAXL}]; uniform int uLN;
+    varying vec2 vUv; varying vec2 vSeed; varying vec3 vColor; varying vec4 vLive; varying float vDepth; varying vec3 vLit;
+    void main() {
+      vUv = uv; vSeed = aSeed2; vColor = aColor; vLive = aLive;
+      vec3 lit = vec3(0.0);
+      for (int k = 0; k < ${MAXL}; k++) { if (k >= uLN) break; lit += uLC[k] * (1.0 - smoothstep(0.0, 42.0, distance(aOffset, uLP[k]))); }
+      vLit = lit;
+      vec4 mv = modelViewMatrix * vec4(aOffset, 1.0);
+      float grow = aLive.y < 0.999 ? 0.12 * (1.0 - aLive.y) : 0.0;
+      mv.xy += position.xy * vec2(1.4, 1.0) * aSize * (1.0 + grow);
+      vDepth = -mv.z;
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: `
+    uniform float uTime; uniform float uFocus; uniform float uEmit; uniform float uAbs; uniform float uDof; uniform float uLitK;
+    varying vec2 vUv; varying vec2 vSeed; varying vec3 vColor; varying vec4 vLive; varying float vDepth; varying vec3 vLit;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float noise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
+    float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return v; }
+    float box(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
+    void main() {
+      vec2 p = (vUv - 0.5) * vec2(1.4, 1.0);
+      float d = box(p, vec2(0.6, 0.4), 0.05);
+      float bl = clamp(abs(vDepth - uFocus) / uDof, 0.0, 1.0);           // desenfoque por distancia al foco
+      float mask = 1.0 - smoothstep(-0.14 - 0.34 * bl, 0.04 + 0.14 * bl, d);
+      if (mask <= 0.001) discard;
+      // una escritura: la imagen se rehace desde el centro con otra semilla (reemplaza al anillo)
+      float r = length(p) / 0.72, front = vLive.y * 1.15;
+      float s = mix(vSeed.x, vSeed.y, step(r, front));
+      float t = uTime * 0.035;
+      vec2 q = p * 2.4 + s * 17.0;
+      vec2 w = vec2(fbm(q + t), fbm(q - t + 3.1));
+      float n = mix(fbm(q + 1.9 * w), 0.52, 0.7 * bl);
+      // el frente, fino y moderado: a 1,6 y 0,075 se leía como un anillo encima del cuadro
+      float band = vLive.y < 0.999 ? (1.0 - smoothstep(0.0, 0.055, abs(r - front))) * 0.55 : 0.0;
+      vec3 warm = vec3(1.0, 0.93, 0.82);
+      vec3 col = vColor * (0.12 + 1.1 * smoothstep(0.3, 0.9, n)) + warm * pow(n, 5.0) * 0.8;
+      float star = step(0.9965, hash(floor((p + s) * 95.0))) * (0.5 + 0.5 * sin(uTime * 2.0 + s * 40.0)) * (1.0 - bl);
+      float edge = (1.0 - smoothstep(0.0, 0.014, abs(d + 0.012))) * 0.4 * (1.0 - bl);
+      float fog = clamp(1.0 - (vDepth - uFocus + 200.0) / 620.0, 0.12, 1.0);
+      vec3 frente = mix(warm, vec3(0.62, 0.6, 0.58), vLive.w);
+      vec3 lit = vLit * uLitK * (0.25 + 1.6 * smoothstep(0.35, 0.85, n));
+      vec3 emit = (col * (0.55 + 0.9 * vLive.x) + vec3(star) * 0.7 + (vColor * 0.5 + 0.5) * edge * (0.35 + vLive.x + band) + frente * band * 1.6) * uEmit + lit;
+      float a = uAbs * (0.3 + 0.6 * (1.0 - smoothstep(0.3, 0.9, n)));
+      float k = mask * fog * vLive.z;
+      gl_FragColor = vec4(emit * k, a * k);
+    }`,
+});
+const frames = new THREE.Mesh(fg, frameMat);
+frames.frustumCulled = false; frames.renderOrder = 2;
+scene.add(frames);
+const ordenIdx = Array.from({ length: N }, (_, i) => i);
+const profundidad = new Float32Array(N);
+
+// ── Las líneas: los wikilinks, con el mismo manejo de color y niebla que los cuadros (P1) ──
+// Antes pasaban por la conversión sRGB y los cuadros no (5-12× más brillantes de lo que decía el
+// código) y la niebla les sumaba su color 356 veces en el mismo lugar: eso era el «7».
+const E = data.edges.length;
+// El material de las líneas (mapa ⑥.9): cada línea es una cinta que se abre en pantalla desde su
+// eje, porque una línea de 1 px no tiene ancho donde pintar un material. Una instancia por
+// wikilink: los extremos, el color de base, el calor (la estela de la sesión que pasó) y una semilla.
+// El radio que ilumina usa LAS MISMAS luces que los cuadros: los arreglos de frameMat, compartidos.
+const lg = new THREE.InstancedBufferGeometry();
+lg.setAttribute('corner', new THREE.BufferAttribute(new Float32Array([0, -1, 1, -1, 0, 1, 1, 1]), 2));
+lg.setIndex([0, 1, 2, 2, 1, 3]);
+const inst3 = () => new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, E) * 3), 3).setUsage(THREE.DynamicDrawUsage);
+const lA = inst3(), lB = inst3(), lCol = inst3(), lHeat = inst3(), lLitPos = inst3(), lLitCol = inst3();
+const lSeed = new THREE.InstancedBufferAttribute(Float32Array.from({ length: Math.max(1, E) }, (_, e) => rnd01(e * 7 + 3)), 1);
+lg.setAttribute('iA', lA); lg.setAttribute('iB', lB); lg.setAttribute('iCol', lCol); lg.setAttribute('iHeat', lHeat); lg.setAttribute('iSeed', lSeed);
+// La luz que recorre ESTE wikilink (posición y color; negro si ninguna): el brillo no se contagia a las
+// líneas vecinas que caen dentro del radio (Artu 25/09 18:53), como pasaba mirando todas las luces.
+lg.setAttribute('iLitPos', lLitPos); lg.setAttribute('iLitCol', lLitCol);
+const lMal = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, E)), 1).setUsage(THREE.DynamicDrawUsage);
+lg.setAttribute('iMal', lMal);
+lg.instanceCount = E;
+const lineMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uFocus: { value: 400 }, uTime: { value: 0 }, uMat: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uDpr: { value: 1 },
+    uWidth: { value: 1.4 }, uRadius: { value: 12 }, uGrain: { value: 1 }, uLit: { value: 0.35 },
+    // tamaño de las motas del polvo: más chicas y algo menos densas se ve más limpio (Artu, 26/09 22:15)
+    uMota: { value: 0.6 },
+  },
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `attribute vec2 corner; attribute vec3 iA; attribute vec3 iB; attribute vec3 iCol; attribute vec3 iHeat; attribute float iSeed; attribute vec3 iLitPos; attribute vec3 iLitCol; attribute float iMal;
+    uniform float uFocus; uniform vec2 uRes; uniform float uDpr; uniform float uWidth; uniform int uMat;
+    varying vec3 vCol; varying vec3 vHeat; varying vec3 vW; varying float vT; varying float vS; varying float vHalf; varying float vLenPx; varying float vSeed; varying float vFog; varying vec3 vLitPos; varying vec3 vLitCol; varying float vMal;
+    void main() {
+      vec4 ma = modelViewMatrix * vec4(iA, 1.0), mb = modelViewMatrix * vec4(iB, 1.0);
+      // detrás de la cámara no hay línea que dibujar; si un extremo lo está, se acorta hasta el plano cercano
+      const float NEAR = -1.5;
+      if (ma.z > NEAR && mb.z > NEAR) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+      if (ma.z > NEAR) ma = mix(mb, ma, (mb.z - NEAR) / (mb.z - ma.z));
+      if (mb.z > NEAR) mb = mix(ma, mb, (ma.z - NEAR) / (ma.z - mb.z));
+      vec4 ca = projectionMatrix * ma, cb = projectionMatrix * mb;
+      vec2 sa = ca.xy / ca.w * 0.5 * uRes, sb = cb.xy / cb.w * 0.5 * uRes;
+      vec2 d = sb - sa; float lenPx = length(d);
+      vec2 dir = lenPx > 0.001 ? d / lenPx : vec2(1.0, 0.0), nrm = vec2(-dir.y, dir.x);
+      // cada material se abre distinto desde el núcleo: el láser tiene halo, el polvo se dispersa, Petrova ondula
+      float spread = uMat == 0 ? 1.6 : uMat == 1 ? 5.0 : uMat == 2 ? 4.0 : 6.0;
+      float halfPx = uWidth * uDpr * spread;
+      vec4 c = mix(ca, cb, corner.x);
+      c.xy += nrm * corner.y * halfPx / uRes * 2.0 * c.w;
+      gl_Position = c;
+      vec4 mv = mix(ma, mb, corner.x);
+      vFog = clamp(1.0 - (-mv.z - uFocus + 200.0) / 620.0, 0.12, 1.0);
+      vCol = iCol; vHeat = iHeat; vW = mix(iA, iB, corner.x); vT = corner.x; vS = corner.y; vHalf = halfPx / uDpr; vLenPx = lenPx / uDpr; vSeed = iSeed;
+      vLitPos = iLitPos; vLitCol = iLitCol; vMal = iMal;
+    }`,
+  fragmentShader: `uniform float uTime; uniform int uMat; uniform float uRadius; uniform float uGrain; uniform float uWidth; uniform float uLit; uniform float uMota;
+    varying vec3 vCol; varying vec3 vHeat; varying vec3 vW; varying float vT; varying float vS; varying float vHalf; varying float vLenPx; varying float vSeed; varying float vFog; varying vec3 vLitPos; varying vec3 vLitCol; varying float vMal;
+    float h1(float n) { return fract(sin(n) * 43758.5453); }
+    float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+      float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5453), b = fract(sin(dot(i + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5453);
+      float c = fract(sin(dot(i + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5453), d = fract(sin(dot(i + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5453);
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y); }
+    // polvo estelar: motas que titilan y derivan de una nota a la otra, sobre un hilo tenue
+    vec3 polvo(vec3 base, float inten, float px, float along, float w, float core, vec3 lit) {
+      float gap = 7.0 + 3.0 * w;
+      float drift = along - uTime * (6.0 + 10.0 * vSeed);
+      float cell = floor(drift / gap);
+      float r = h1(cell * 1.31 + vSeed * 97.0);
+      float off = (h1(cell * 2.17 + vSeed * 13.0) - 0.5) * vHalf * 1.1;
+      float dd = length(vec2(drift - (cell + 0.5) * gap, px - off));
+      float rad = (0.7 + 1.3 * h1(cell * 3.7 + vSeed)) * w * uMota;
+      float mote = step(0.45, r) * exp(-dd * dd / (rad * rad));
+      float tw = 0.55 + 0.45 * sin(uTime * (1.5 + 3.0 * r) + r * 40.0);
+      // el hilo de fondo queda (sin él la mente pierde la forma de lejos) y las motas lo recorren
+      return base * core * 0.7 + (base * 2.6 + vec3(1.0, 0.93, 0.82) * inten * 1.1) * mote * tw * uGrain + lit * (mote * 2.4 + core * 0.8);
+    }
+    // la línea de Petrova: un filamento infrarrojo (brasa, no violeta) que ondula, una bruma alrededor
+    // y astrófagos que viajan por él de una nota a la otra
+    vec3 petrova(float inten, float px, float along, float w, vec3 lit) {
+      float flow = vnoise(vec2(along * 0.035 - uTime * 0.9, vSeed * 17.0)) - 0.5;
+      float fil = exp(-pow(px - flow * vHalf * 0.55, 2.0) / (1.1 * w * w));
+      float haze = exp(-abs(px) / (2.6 * w)) * (0.55 + 0.45 * vnoise(vec2(along * 0.02 + uTime * 0.3, vSeed * 5.0 + vS)));
+      float trip = along - uTime * 26.0;
+      float cell = floor(trip / 13.0);
+      float r = h1(cell * 1.7 + vSeed * 31.0);
+      float a = fract(trip / 13.0) - 0.5;
+      float spec = step(0.62, r) * exp(-(a * 13.0) * (a * 13.0) / 1.4 - px * px / (0.7 * w * w));
+      vec3 brasa = vec3(0.86, 0.34, 0.2), viva = vec3(1.0, 0.7, 0.46);
+      // la brasa escala con el brillo propio de cada línea: con un piso fijo, las 1.700 ardían igual (medido)
+      float k = 3.2 * inten;
+      return (brasa * (fil * 0.9 + haze * 0.18) * k + viva * spec * k * 1.4) * uGrain + vHeat * fil * 1.4 + lit * (fil * 1.8 + haze * 0.8);
+    }
+    void main() {
+      float px = vS * vHalf;                 // distancia al eje, en px de pantalla (con signo)
+      float along = vT * vLenPx;             // recorrido desde la nota de origen, en px
+      // la luz ilumina en un radio, pero sólo el wikilink que recorre (su posición y color vienen con la línea)
+      float dl = distance(vW, vLitPos);
+      vec3 lit = vLitCol * exp(-dl * dl / max(1.0, uRadius * uRadius));
+      float w = max(0.6, uWidth);
+      float core = exp(-px * px / (0.9 * w * w));
+      vec3 base = vCol + vHeat;
+      float inten = max(max(base.r, base.g), base.b);
+      // con el mismo token que los cuadros; ahora es una línea por luz, así que ya no hace falta atenuarla por su brillo
+      lit *= uLit * 2.0;
+      vec3 col;
+      if (uMat == 1) {
+        // láser: núcleo blanco caliente, halo apretado del color de la línea, un pulso que corre
+        float glow = exp(-abs(px) / (1.6 * w));
+        float pulse = 0.8 + 0.2 * sin(along * 0.09 - uTime * 4.5 + vSeed * 6.28);
+        col = (base * (core * 1.5 + glow * 0.3 * uGrain) + vec3(1.0, 0.96, 0.9) * core * inten * 0.6) * pulse + lit * (core * 1.8 + glow * 0.9);
+      } else if (uMat == 2) {
+        col = polvo(base, inten, px, along, w, core, lit);
+      } else if (uMat == 3) {
+        col = petrova(inten, px, along, w, lit);
+      } else if (uMat == 4) {
+        // estado (Artu 25/09 19:11): polvo celeste mientras sus notas están bien, y se transforma en la
+        // línea de Petrova, roja, cuando a una de las dos le pasa algo (vMal: 0 bien, 1 mal, con transición).
+        // La roja lleva un piso de brillo: el problema tiene que verse aunque la línea sea tenue.
+        vec3 celeste = vec3(0.55, 0.80, 0.96) * inten * 1.35 + vHeat;
+        col = mix(polvo(celeste, inten, px, along, w, core, lit), petrova(max(inten, 0.11), px, along, w, lit), smoothstep(0.0, 1.0, vMal));
+      } else {
+        // hilo: lo de antes, con la luz que lo enciende al pasar
+        col = base * core * 1.25 + lit * core * 1.1;
+      }
+      gl_FragColor = vec4(col * vFog, 1.0);
+    }`,
+});
+const lines = new THREE.Mesh(lg, lineMat);
+lines.frustumCulled = false; lines.renderOrder = 1;
+scene.add(lines);
+const heat = new Float32Array(E);
+const heatCol = Array.from({ length: E }, () => new THREE.Color());
+const principal = new Uint8Array(E);
+const pesoHaz = new Float32Array(E);
+const LINEA = new THREE.Color(ESCENA.linea);
+function classifyLines() {
+  // «principal» (Artu 25/09): sin índice y mutua o repetida (447 de 1.729); y un haz entre dos
+  // grupos pesa min(1, 3/√n) para que 190 líneas paralelas no sean una barra (lente de efectos)
+  const pares = new Map();
+  data.edges.forEach(([a, b, f], e) => {
+    principal[e] = state.lines === 'all' ? 1 : state.lines === 'group' ? +(groupOf(a) === groupOf(b)) : +(!isHub(a) && !isHub(b) && f > 0);
+    const ga = groupOf(a), gb = groupOf(b), k = ga < gb ? `${ga},${gb}` : `${gb},${ga}`;
+    pares.set(k, (pares.get(k) ?? 0) + 1);
+  });
+  data.edges.forEach(([a, b], e) => {
+    const ga = groupOf(a), gb = groupOf(b), k = ga < gb ? `${ga},${gb}` : `${gb},${ga}`;
+    pesoHaz[e] = Math.min(1, 3 / Math.sqrt(pares.get(k)));
+  });
+}
+classifyLines();
+
+// ── Puntos de luz: polvo, luces de las sesiones, halos de lejos ─────────────
+const glowPoints = (count, order = 3) => {
+  const g = new THREE.BufferGeometry();
+  const at = (n) => new THREE.BufferAttribute(new Float32Array(Math.max(1, count) * n), n).setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('position', at(3)); g.setAttribute('aCol', at(3)); g.setAttribute('aSize', at(1)); g.setAttribute('aAlpha', at(1));
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uFade: { value: 1 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: `attribute vec3 aCol; attribute float aSize; attribute float aAlpha; varying vec3 vCol; varying float vA;
+      void main() { vCol = aCol; vA = aAlpha; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = clamp(aSize * 320.0 / -mv.z, 1.5, 90.0); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform float uFade; varying vec3 vCol; varying float vA;
+      void main() { float d = length(gl_PointCoord - 0.5); float a = pow(smoothstep(0.5, 0.0, d), 2.2); gl_FragColor = vec4(vCol * a * vA * uFade, 1.0); }`,
+  });
+  const p = new THREE.Points(g, m); p.frustumCulled = false; p.renderOrder = order; scene.add(p);
+  g.userData.material = m; g.userData.points = p;
+  return g;
+};
+const DUST = 2400;
+const dust = glowPoints(DUST, 0);
+for (let i = 0; i < DUST; i++) {
+  const r = 260 + Math.random() * 1000, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+  dust.attributes.position.setXYZ(i, r * Math.sin(ph) * Math.cos(th), r * Math.cos(ph) * 0.6, r * Math.sin(ph) * Math.sin(th) - 150);
+  const c = 0.45 + Math.random() * 0.4; dust.attributes.aCol.setXYZ(i, 0.9 * c, 0.84 * c, 0.74 * c);
+  dust.attributes.aSize.setX(i, 0.6 + Math.random() * 1.4); dust.attributes.aAlpha.setX(i, 0.2 + Math.random() * 0.3);
+}
+// Halo por nota: lo que se lee de lejos, cero de cerca (P3)
+const halo = glowPoints(N, 1);
+
+// ── Las galaxias: una imagen de galaxia por grupo, sobre su disco, que se ve de lejos (P3) ──
+const galaxiaMat = (color, R, sem) => new THREE.ShaderMaterial({
+  uniforms: { uColor: { value: color }, uR: { value: R }, uAlpha: { value: 0 }, uSeed: { value: sem } },
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform vec3 uColor; uniform float uR; uniform float uAlpha; uniform float uSeed; varying vec2 vUv;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float noise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
+    void main() {
+      vec2 p = (vUv - 0.5) * 2.0; float r = length(p); if (r > 1.0) discard;
+      float th = atan(p.y, p.x), rw = r * uR * 1.3;
+      float arms = pow(max(0.0, cos(2.0 * (th - 0.075 * rw))), 3.0);
+      float nz = 0.55 + 0.9 * noise(vec2(th * 3.0 + uSeed * 10.0, rw * 0.15));   // una espiral perfecta parece fondo de pantalla
+      float disk = exp(-3.2 * r), bulge = exp(-55.0 * r * r);
+      vec3 c = uColor * (arms * disk * nz * 0.55 + disk * 0.07) + vec3(1.0, 0.93, 0.82) * bulge * 1.1;
+      gl_FragColor = vec4(c * uAlpha * (1.0 - smoothstep(0.85, 1.0, r)), 1.0);
+    }`,
+});
+let galaxias = [];
+function buildGalaxias() {
+  for (const g of galaxias) { scene.remove(g.mesh); g.mesh.material.dispose(); }
+  galaxias = [];
+  const metas = data.galaxies?.[state.grouping] ?? [];
+  metas.forEach((m, gi) => {
+    if (!m) return;
+    const c = new THREE.Color(ESCENA.tintes[gi % ESCENA.tintes.length]);
+    const miembro = data.nodes.findIndex((n) => n.group[state.grouping] === gi);
+    if (miembro >= 0) c.copy(colorGrupo[miembro]);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), galaxiaMat(new THREE.Vector3(c.r, c.g, c.b), m.r, gi * 0.37));
+    const bx = new THREE.Vector3(...m.u), by = new THREE.Vector3(...m.v), bz = new THREE.Vector3(...m.n);
+    mesh.matrixAutoUpdate = false;
+    mesh.matrix.makeBasis(bx, by, bz).scale(new THREE.Vector3(m.r * 2.6, m.r * 2.6, 1)).setPosition(...m.c);
+    mesh.frustumCulled = false; mesh.renderOrder = 0;
+    scene.add(mesh);
+    galaxias.push({ mesh, centro: new THREE.Vector3(...m.c) });
+  });
+}
+buildGalaxias();
+let visGalaxias = 0;
+
+// ── Las sesiones: una luz cada una. Cabeza de tungsteno (lo que entra); estela del color de su voz ──
+const sesiones = [...data.sessions].sort((a, b) => {
+  const pa = data.events.find((e) => e.s === a.id)?.t ?? '', pb = data.events.find((e) => e.s === b.id)?.t ?? '';
+  return pa.localeCompare(pb);
+});
+const sessionIdx = new Map(sesiones.map((s, i) => [s.id, i]));
+const colorVoz = (id) => (sessionIdx.has(id) ? ESCENA.voces[sessionIdx.get(id) % ESCENA.voces.length] : ESCENA.sinSesion);
+const TRAIL = 30;
+const lightG = glowPoints(Math.max(1, sesiones.length) * TRAIL, 4);
+const lights = sesiones.map((s) => ({ id: s.id, col: new THREE.Color(colorVoz(s.id)), node: -1, p: new THREE.Vector3(0, 0, -40), from: null, path: null, seg: 0, segT: 0, queue: [], idle: 99, trail: [] }));
+function bfs(a, b) {
+  if (a === b) return [a];
+  const prev = new Int32Array(N).fill(-1); prev[a] = a;
+  const q = [a];
+  for (let h = 0; h < q.length; h++) {
+    const u = q[h];
+    for (const v of adj[u]) if (prev[v] === -1) { prev[v] = u; if (v === b) { const path = [b]; let x = b; while (x !== a) { x = prev[x]; path.push(x); } return path.reverse(); } q.push(v); }
+  }
+  return null;
+}
+let semillas = 7;
+function reescribir(rel, externa) {
+  // la imagen se rehace: la semilla nueva entra desde el centro (P5; reemplaza al anillo)
+  if (forma[rel] >= 1) seedPrev[rel] = seedNext[rel];
+  seedNext[rel] = ((semillas++ * 0.61803) % 1);
+  forma[rel] = RM ? 1 : 0; formaExt[rel] = externa ? 1 : 0;
+  if (RM) seedPrev[rel] = seedNext[rel];
+}
+function arrive(L, ev) {
+  if (ev.kind === 'read') glow[ev.rel] = Math.max(glow[ev.rel], 1.0);
+  else if (ev.kind === 'denied') glow[ev.rel] = Math.max(glow[ev.rel], 0.6); // la escritura no ocurrió: la nota no se rehace
+  else reescribir(ev.rel, false);
+}
+function stepLight(L, dt) {
+  L.idle += dt;
+  if (!L.path && L.queue.length) {
+    const ev = L.queue.shift();
+    L.idle = 0;
+    if (L.node === ev.rel || RM) { L.node = ev.rel; L.p.copy(pos[ev.rel]); arrive(L, ev); }
+    else {
+      const path = L.node >= 0 ? bfs(L.node, ev.rel) : null;
+      L.path = path && path.length >= 2 && path.length <= 14 ? path : [-1, ev.rel];
+      if (L.path[0] === -1) L.from = L.p.clone();
+      L.seg = 0; L.segT = 0; L.ev = ev;
+    }
+  }
+  if (L.path) {
+    const a = L.path[L.seg], b = L.path[L.seg + 1];
+    const A = a === -1 ? L.from : pos[a], B = pos[b];
+    const dur = Math.max(0.1, A.distanceTo(B) / (a === -1 ? 160 : 120));
+    L.segT += dt / dur;
+    L.edge = -1; // el wikilink que la luz recorre ahora: sólo ése se enciende a su paso
+    if (a !== -1) { const e = edgeIndex.get(a < b ? `${a},${b}` : `${b},${a}`); if (e !== undefined) { heat[e] = 1; heatCol[e].copy(L.col); L.edge = e; } }
+    L.p.lerpVectors(A, B, Math.min(1, L.segT));
+    if (L.segT >= 1) { L.seg++; L.segT = 0; if (L.seg >= L.path.length - 1) { L.node = b; arrive(L, L.ev); L.path = null; } }
+    L.idle = 0;
+  } else { L.edge = -1; if (L.node >= 0) L.p.copy(pos[L.node]); }
+  L.trail.unshift(L.p.clone()); if (L.trail.length > TRAIL) L.trail.pop();
+}
+
+// ── La reproducción y su tiempo (el mismo tiempo que usa la partitura) ──────
+const EV = data.events;
+function delayAfter(k) {
+  if (k + 1 >= EV.length) return 4;
+  const dtSec = (Date.parse(EV[k + 1].t) - Date.parse(EV[k].t)) / 1000;
+  return Math.min(2.6, Math.max(0.28, Math.log2(1 + dtSec) * 0.22));
+}
+const T = new Float64Array(EV.length + 1);
+for (let k = 0; k < EV.length; k++) T[k + 1] = T[k] + delayAfter(k);
+const TOTAL = Math.max(1, T[EV.length]);
+let evIdx = 0, evClock = 2.5, vueltas = 0, ultimo = null;
+// «Algo mal» por nota (mapa ⑥.9, material «estado»): una escritura sin autor o una frenada, hasta que una
+// sesión la vuelva a escribir. Se calcula con los eventos que ya ocurrieron, así un salto en la partitura o
+// una vuelta nueva de la repetición no dejan un estado viejo. Lo vencido o reemplazado NO cuenta: es el
+// ciclo normal de una nota (su ficha lo dice) y con una sola nota reemplazada de 77 links la mente entera
+// se veía en alarma (medido mirándolo, 25/09 19:20).
+const malNota = new Uint8Array(N);
+const malLinea = new Float32Array(E);
+let malHasta = -1;
+function estadoHasta(k) {
+  malNota.fill(0);
+  for (let j = 0; j < k; j++) {
+    const ev = EV[j];
+    if (ev.kind === 'external' || ev.kind === 'denied') malNota[ev.rel] = 1;
+    else if (ev.kind !== 'read') malNota[ev.rel] = 0;
+  }
+  malHasta = k;
+}
+function fire(ev) {
+  ultimo = ev;
+  pintarAhora(ev);
+  const L = ev.kind !== 'external' && ev.s !== null && sessionIdx.has(ev.s) ? lights[sessionIdx.get(ev.s)] : null;
+  if (!L) { reescribir(ev.rel, true); return; } // externa: se rehace sin luz, con frente gris
+  L.queue.push(ev);
+}
+function stepReplay(dt) {
+  if (!state.playing || !EV.length) return;
+  evClock -= dt * Number(state.speed);
+  while (evClock <= 0) {
+    fire(EV[evIdx]);
+    evClock += delayAfter(evIdx);
+    evIdx++;
+    if (evIdx >= EV.length) { evIdx = 0; vueltas++; }
+  }
+}
+const tAhora = () => (EV.length ? Math.max(0, T[evIdx] - evClock) : 0);
+
+// ── La partitura (de B) ─────────────────────────────────────────────────────
+const score = $('score');
+const sctx = score.getContext('2d');
+const sinAutor = (e) => e.kind === 'external' || (!e.s && e.kind !== 'script');
+const FILAS = [...sesiones.map((s) => s.id), ...(EV.some((e) => e.kind === 'script') ? ['(scripts)'] : []), ...(EV.some(sinAutor) ? ['(sin autor)'] : [])];
+let ROW = TK.voz || 9; const TOP = 18, LEFT = 74; // ROW es el token --voz-alto
+let scoreW = 0, marcas = [], hovMarca = null;
+function filaDe(ev) { return ev.kind === 'script' ? FILAS.indexOf('(scripts)') : sinAutor(ev) ? FILAS.indexOf('(sin autor)') : FILAS.indexOf(ev.s); }
+function layoutScore() {
+  const dpr = Math.min(devicePixelRatio, 2);
+  scoreW = score.clientWidth;
+  const h = TOP + Math.max(1, FILAS.length) * ROW + 8;
+  score.style.height = `${h}px`;
+  score.width = Math.round(scoreW * dpr); score.height = Math.round(h * dpr);
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = scoreW - LEFT - 6;
+  marcas = EV.map((ev, k) => ({ ev, k, x: LEFT + (T[k] / TOTAL) * W, y: TOP + filaDe(ev) * ROW + ROW / 2 }));
+}
+const xDe = (t) => LEFT + (t / TOTAL) * (scoreW - LEFT - 6);
+function horas() {
+  // una marca por cada hora que cruza el tiempo comprimido, interpolada dentro de su hueco
+  const out = []; let ultimaX = -99;
+  for (let k = 0; k + 1 < EV.length; k++) {
+    const a = Date.parse(EV[k].t), b = Date.parse(EV[k + 1].t);
+    let h = Math.ceil(a / 3600000) * 3600000;
+    for (; h <= b; h += 3600000) {
+      const x = xDe(T[k] + (b > a ? (h - a) / (b - a) : 0) * (T[k + 1] - T[k]));
+      if (x - ultimaX >= 26) { out.push({ x, txt: `${new Date(h).getHours()}h` }); ultimaX = x; }
+    }
+  }
+  return out;
+}
+let marcasHora = [];
+function dibujarScore() {
+  const h = score.clientHeight;
+  sctx.clearRect(0, 0, scoreW, h);
+  sctx.font = '10px "IBM Plex Mono", monospace';
+  sctx.textBaseline = 'middle';
+  FILAS.forEach((id, r) => {
+    const y = TOP + r * ROW + ROW / 2;
+    const elegida = state.sesion === id;
+    sctx.fillStyle = id === '(sin autor)' ? 'rgba(236,229,216,.38)' : colorVoz(id);
+    sctx.globalAlpha = state.sesion && !elegida ? 0.35 : 1;
+    sctx.fillText(id === '(sin autor)' ? 'sin autor' : id.slice(0, 8), 0, y);
+    sctx.globalAlpha = 1;
+    sctx.fillStyle = elegida ? 'rgba(243,194,122,.35)' : 'rgba(236,229,216,.10)';
+    sctx.fillRect(LEFT, Math.round(y) + 0.5, scoreW - LEFT - 6, 1);
+  });
+  sctx.fillStyle = 'rgba(236,229,216,.38)';
+  sctx.textBaseline = 'alphabetic';
+  for (const m of marcasHora) { sctx.fillText(m.txt, m.x - 6, 10); sctx.fillRect(m.x, 13, 1, h - 13); }
+  const ahora = tAhora();
+  for (const m of marcas) {
+    const pasada = T[m.k] <= ahora || vueltas > 0 && false;
+    const col = colorDe(m.ev);
+    const atenuada = (state.sesion && m.ev.s !== state.sesion) || !pasada;
+    sctx.globalAlpha = atenuada ? 0.28 : 1;
+    sctx.strokeStyle = sctx.fillStyle = col;
+    sctx.lineWidth = hovMarca === m ? 2 : 1.2;
+    if (m.ev.kind === 'read') { sctx.beginPath(); sctx.arc(m.x, m.y, 2.4, 0, Math.PI * 2); sctx.stroke(); }
+    else if (m.ev.kind === 'denied') { sctx.beginPath(); sctx.arc(m.x, m.y + 1.5, 3, Math.PI, 0); sctx.stroke(); sctx.fillRect(m.x - 0.75, m.y + 0.5, 1.5, 1.5); } // 𝄐 negada (mapa ①)
+    else if (m.ev.kind === 'script') { sctx.strokeRect(m.x - 2, m.y - 2, 4, 4); } // ▫ la regeneró su script
+    else if (m.ev.kind === 'external') { sctx.beginPath(); sctx.moveTo(m.x - 2.5, m.y - 2.5); sctx.lineTo(m.x + 2.5, m.y + 2.5); sctx.moveTo(m.x + 2.5, m.y - 2.5); sctx.lineTo(m.x - 2.5, m.y + 2.5); sctx.stroke(); }
+    else sctx.fillRect(m.x - 0.75, m.y - 3.5, 1.5, 7);
+  }
+  sctx.globalAlpha = 1;
+  // la aguja: el ahora, en tungsteno
+  const xa = xDe(ahora);
+  sctx.fillStyle = TK.acento; sctx.shadowColor = TK.acento; sctx.shadowBlur = 6;
+  sctx.fillRect(xa, 13, 1.5, h - 13);
+  sctx.shadowBlur = 0;
+}
+function pintarAhora(ev, prefijo = '') {
+  const el = $('ahora');
+  if (!ev) { el.innerHTML = prefijo; return; }
+  const quien = quienDe(ev);
+  const col = colorDe(ev);
+  el.innerHTML = `${prefijo}<span class="mono">${hhmm(ev.t)}</span> <span class="punto" style="background:${col}"></span><span class="quien">${esc(quien)}</span> ${VERBOS[ev.kind] ?? ev.kind} <b>${esc(nombre(ev.rel))}</b>${repetido(ev.rel) ? ` <span class="grupo">· ${esc(nombreGrupo(ev.rel))}</span>` : ''}`;
+}
+function marcaEn(x, y) {
+  let best = null, bd = 49;
+  for (const m of marcas) { const d = (m.x - x) ** 2 + (m.y - y) ** 2; if (d < bd) { bd = d; best = m; } }
+  return best;
+}
+if (!EV.length) {
+  $('partitura').innerHTML = '<div class="vacia">Sin actividad todavía: cuando una sesión lea o escriba, aparece acá.</div>';
+} else {
+  layoutScore(); marcasHora = horas();
+  score.addEventListener('pointermove', (e) => {
+    const r = score.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    hovMarca = x < LEFT ? null : marcaEn(x, y);
+    const fila = Math.floor((y - TOP) / ROW);
+    score.style.cursor = hovMarca || (x < LEFT && FILAS[fila] && FILAS[fila] !== '(sin autor)') ? 'pointer' : 'default';
+    if (hovMarca) pintarAhora(hovMarca.ev); else if (ultimo) pintarAhora(ultimo);
+  });
+  score.addEventListener('pointerleave', () => { hovMarca = null; if (ultimo) pintarAhora(ultimo); });
+  score.addEventListener('click', (e) => {
+    const r = score.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (x < LEFT) { // la voz: es la presencia de la sesión (mapa ③)
+      const id = FILAS[Math.floor((y - TOP) / ROW)];
+      if (!id || id === '(sin autor)') return;
+      state.sesion = state.sesion === id ? null : id; aplicarFiltroSesion();
+      return;
+    }
+    const m = marcaEn(x, y); if (m) flyTo(m.ev.rel);
+  });
+}
+function aplicarFiltroSesion() {
+  const toco = new Set(state.sesion ? EV.filter((e) => e.s === state.sesion).map((e) => e.rel) : []);
+  for (let i = 0; i < N; i++) filtro[i] = !state.sesion ? 1 : toco.has(i) ? 1 : 0.3;
+}
+
+// ── Etiquetas, tooltip, ficha ───────────────────────────────────────────────
+const labelsEl = $('labels');
+const LABELS = 48;
+const labelPool = Array.from({ length: LABELS }, () => { const d = document.createElement('div'); d.className = 'l'; labelsEl.append(d); return d; });
+const tmp = new THREE.Vector3();
+function screenOf(i) {
+  tmp.copy(pos[i]).project(camera);
+  if (tmp.z > 1 || tmp.z < -1) return null;
+  const dist = camera.position.distanceTo(pos[i]);
+  const ppu = (innerHeight / 2) / (Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist);
+  // la zona de clic es la que se dibuja, índices incluidos (antes 2/3: lente de mecánica)
+  return { x: (tmp.x * 0.5 + 0.5) * innerWidth, y: (-tmp.y * 0.5 + 0.5) * innerHeight, r: size[i] * escala(i) * TK.cuadro * 0.5 * ppu, dist };
+}
+let hovered = -1, selected = -1;
+const vecino = new Uint8Array(N); let vecinoDe = -2;
+function updateLabels() {
+  const cand = [];
+  for (let i = 0; i < N; i++) {
+    if (fade[i] < 0.5 || i === hovered) continue; // el señalado ya tiene su tooltip: no dos veces
+    const s = screenOf(i); if (!s) continue;
+    if (s.x < -50 || s.x > innerWidth + 50 || s.y < -20 || s.y > innerHeight + 20) continue;
+    let ok = i === selected;
+    if (state.text === 'always') ok = true;
+    if (state.text === 'near') ok = ok || s.dist < 150;
+    if (ok) cand.push([i, s]);
+  }
+  cand.sort((a, b) => b[1].r - a[1].r);
+  labelPool.forEach((el, k) => {
+    const c = cand[k];
+    if (!c) { el.style.display = 'none'; return; }
+    const [i, s] = c;
+    el.style.display = 'block';
+    el.innerHTML = esc(nombre(i)) + (repetido(i) ? ` <i>· ${esc(nombreGrupo(i))}</i>` : '');
+    el.style.transform = `translate(${(s.x + s.r * 1.45).toFixed(1)}px, ${(s.y - 8).toFixed(1)}px)`;
+    el.style.opacity = String(Math.max(0.35, Math.min(1, 1.6 - s.dist / 260)));
+  });
+}
+const tip = $('tip');
+let mouse = null;
+// el hover sólo cuenta sobre el espacio: antes atravesaba la ficha y el panel (lente de mecánica)
+renderer.domElement.addEventListener('pointermove', (e) => { mouse = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('pointerleave', () => { mouse = null; });
+function pick() {
+  if (!mouse) return -1;
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < N; i++) {
+    if (fade[i] < 0.5) continue;
+    const s = screenOf(i); if (!s) continue;
+    const dx = (mouse.x - s.x) / (s.r * 1.4), dy = (mouse.y - s.y) / s.r;
+    if (dx * dx + dy * dy < 1 && s.dist < bestD) { best = i; bestD = s.dist; }
+  }
+  return best;
+}
+function showTip() {
+  if (hovered < 0 || !mouse) { tip.style.display = 'none'; renderer.domElement.style.cursor = ''; return; }
+  const n = data.nodes[hovered];
+  tip.innerHTML = `<b>${esc(n.name)}</b><small>${isHub(hovered) ? 'índice · ' : ''}${esc(nombreGrupo(hovered))} · ${n.deg} conexiones</small>`;
+  tip.style.display = 'block'; tip.style.left = mouse.x + 'px'; tip.style.top = mouse.y + 'px';
+  renderer.domElement.style.cursor = 'pointer';
+}
+// ── La nota, en una ventana (Artu, 26/09 22:15: «que la nota se abra en una ventana en vez de salir
+// a la derecha y dar herramientas de edición»). Leer: el texto en markdown, con los [[links]] que
+// llevan a su nota. Editar: el texto crudo con herramientas; el borrador vive en la pestaña y se
+// copia, porque el boceto no tiene quien escriba (en la app: la librería, con autor «gui»).
+const ventana = $('ventanaNota');
+let modoNota = 'leer';
+const borradores = new Map(); // rel → texto editado y no guardado
+let textos = null, textosError = null; // textos.json: lo escribe export.mjs al lado de data.json
+async function textoDe(rel) {
+  if (!textos && !textosError) {
+    try {
+      const r = await fetch('textos.json');
+      if (!r.ok) throw new Error(`textos.json respondió ${r.status}`);
+      textos = await r.json();
+    } catch (e) { textosError = e.message; }
+  }
+  return textos ? (textos[rel] ?? null) : null;
+}
+let md = null; // marked + DOMPurify, recién la primera vez que se lee una nota (si la CDN no llega, texto plano)
+async function libMd() {
+  if (md) return md;
+  try {
+    const [{ marked }, { default: DOMPurify }] = await Promise.all([import('marked'), import('dompurify')]);
+    md = { marked, DOMPurify };
+  } catch { md = { error: true }; }
+  return md;
+}
+const porNombre = new Map();
+data.nodes.forEach((n, i) => { const k = n.name.toLowerCase(); porNombre.set(k, [...(porNombre.get(k) ?? []), i]); });
+// un [[link]] como lo resuelve Obsidian: ruta exacta, o el nombre (entre repetidos, el de la misma carpeta)
+function resolverWiki(dest, desde) {
+  const limpio = dest.split('#')[0].trim().replace(/\\/g, '/');
+  if (!limpio) return -1;
+  const exacta = porRel.get(limpio.endsWith('.md') ? limpio : `${limpio}.md`);
+  if (exacta !== undefined) return exacta;
+  const c = porNombre.get(limpio.split('/').pop().replace(/\.md$/i, '').toLowerCase()) ?? [];
+  if (c.length < 2) return c[0] ?? -1;
+  const carpeta = data.nodes[desde].rel.split('/').slice(0, -1).join('/');
+  return c.find((j) => data.nodes[j].rel.startsWith(carpeta)) ?? c[0];
+}
+async function pintarLectura(i) {
+  const n = data.nodes[i];
+  const art = $('notaTexto'), aviso = $('notaAviso');
+  const borrador = borradores.get(n.rel);
+  aviso.hidden = !borrador; aviso.className = 'aviso borrador';
+  aviso.textContent = 'Borrador sin guardar: esto es lo que editaste, no lo que está en la nota.';
+  art.innerHTML = '<p class="dim">leyendo la nota…</p>';
+  const texto = borrador ?? await textoDe(n.rel);
+  if (selected !== i) return; // se abrió otra mientras cargaba
+  if (texto === null) {
+    art.innerHTML = textosError
+      ? `<p class="dim">No está el texto de las notas (${esc(textosError)}). Volvé a abrir la galaxia con <span class="mono">mneme galaxia</span>: escribe <span class="mono">textos.json</span> al lado de <span class="mono">data.json</span>.</p>`
+      : '<p class="dim">Esta nota no estaba cuando se exportó: regenerá el export.</p>';
+    return;
+  }
+  if (!texto.trim()) { art.innerHTML = '<p class="dim">La nota está vacía.</p>'; return; }
+  const lib = await libMd();
+  if (selected !== i) return;
+  const fm = texto.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  const cuerpo = (fm ? texto.slice(fm[0].length) : texto)
+    .replace(/!\[\[([^\]]+)\]\]/g, (_, x) => `*[imagen: ${x.split('|')[0]}]*`)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => `*[imagen: ${alt || url}]*`)
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, dest, alias) => {
+      const j = resolverWiki(dest, i), txt = (alias ?? dest).trim();
+      return j >= 0 ? `<a href="#${encodeURIComponent(data.nodes[j].rel)}">${esc(txt)}</a>` : `<span class="sin-nota" title="No hay una nota con ese nombre">${esc(txt)}</span>`;
+    });
+  const meta = fm ? `<details class="meta"><summary>metadatos</summary><pre>${esc(fm[1])}</pre></details>` : '';
+  if (lib.error) { art.innerHTML = `${meta}<pre style="white-space:pre-wrap;font:13px/1.5 var(--mono)">${esc(cuerpo)}</pre>`; return; }
+  art.innerHTML = meta + lib.DOMPurify.sanitize(lib.marked.parse(cuerpo, { gfm: true, breaks: false }), { FORBID_TAGS: ['style', 'iframe', 'form', 'img'], FORBID_ATTR: ['style'] });
+  for (const a of art.querySelectorAll('a[href]')) if (!a.getAttribute('href').startsWith('#')) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+}
+function pintarLado(i) {
+  const n = data.nodes[i];
+  const evs = EV.filter((e) => e.rel === i).slice(-8).reverse();
+  const neigh = adj[i].slice().sort((a, b) => data.nodes[b].deg - data.nodes[a].deg).slice(0, 10);
+  const ref = (j) => `#${encodeURIComponent(data.nodes[j].rel)}`;
+  $('notaLado').innerHTML = `<h3>tocada por última vez</h3><div class="mono">${cuando(n.touched)}</div>
+    <h3>conexiones · ${n.deg}</h3><ul>${neigh.map((j) => `<li><a href="${ref(j)}">${esc(nombre(j))}</a>${repetido(j) ? ` <span class="grupo">· ${esc(nombreGrupo(j))}</span>` : ''}</li>`).join('') || '<li class="dim">Ninguna: es una nota suelta.</li>'}</ul>
+    <h3>actividad</h3><ul>${evs.map((e) => `<li class="ev"><span class="mono">${hhmm(e.t)}</span><span><span class="punto" style="background:${colorDe(e)}"></span><span class="mono">${esc(quienDe(e))}</span> ${VERBOS[e.kind] ?? e.kind}${e.what ? ` <span class="que">${esc(e.what)}</span>` : ''}</span></li>`).join('') || '<li class="dim">Nada en este período.</li>'}</ul>`;
+}
+async function ponerModo(modo) {
+  modoNota = modo;
+  for (const b of ventana.querySelectorAll('[data-modo]')) b.setAttribute('aria-pressed', String(b.dataset.modo === modo));
+  $('notaLeer').hidden = modo !== 'leer'; $('notaEditor').hidden = modo !== 'editar';
+  if (selected < 0) return;
+  const i = selected, rel = data.nodes[i].rel;
+  if (modo === 'leer') { pintarLectura(i); return; }
+  const f = $('notaFuente');
+  f.value = borradores.get(rel) ?? (await textoDe(rel)) ?? '';
+  if (selected !== i) return;
+  f.dataset.rel = rel; estadoEditor(); f.focus();
+}
+function estadoEditor() {
+  const f = $('notaFuente'), rel = f.dataset.rel, e = $('editorEstado');
+  const cambiado = borradores.has(rel);
+  e.classList.toggle('cambiado', cambiado);
+  e.textContent = cambiado ? `borrador sin guardar · ${f.value.split('\n').length} líneas` : 'sin cambios';
+}
+$('notaFuente').addEventListener('input', async () => {
+  const f = $('notaFuente'), rel = f.dataset.rel;
+  const original = (await textoDe(rel)) ?? '';
+  if (f.value === original) borradores.delete(rel); else borradores.set(rel, f.value);
+  estadoEditor();
+});
+// Las herramientas: envuelven la selección o marcan el principio de cada línea. execCommand deja el
+// cambio en el deshacer del navegador (Ctrl+Z); si no está, setRangeText.
+function insertar(f, texto, selIni, selFin) {
+  f.focus();
+  if (!document.execCommand?.('insertText', false, texto)) f.setRangeText(texto, f.selectionStart, f.selectionEnd, 'end');
+  if (selIni !== undefined) f.setSelectionRange(selIni, selFin);
+  f.dispatchEvent(new Event('input'));
+}
+function envolver(antes, despues, relleno) {
+  const f = $('notaFuente'), a = f.selectionStart, b = f.selectionEnd;
+  const sel = f.value.slice(a, b) || relleno;
+  insertar(f, antes + sel + despues, a + antes.length, a + antes.length + sel.length);
+}
+function marcarLineas(marca) {
+  const f = $('notaFuente');
+  const a = f.value.lastIndexOf('\n', f.selectionStart - 1) + 1;
+  let b = f.value.indexOf('\n', Math.max(f.selectionEnd - 1, f.selectionStart)); if (b < 0) b = f.value.length;
+  f.setSelectionRange(a, b);
+  const lineas = f.value.slice(a, b).split('\n');
+  const todas = lineas.every((l) => l.startsWith(marca));
+  const nuevo = lineas.map((l) => (todas ? l.slice(marca.length) : marca + l)).join('\n');
+  insertar(f, nuevo, a, a + nuevo.length);
+}
+const HERRAMIENTAS = {
+  negrita: () => envolver('**', '**', 'texto'), cursiva: () => envolver('*', '*', 'texto'), titulo: () => marcarLineas('## '),
+  lista: () => marcarLineas('- '), tarea: () => marcarLineas('- [ ] '), cita: () => marcarLineas('> '),
+  enlace: () => envolver('[', '](https://)', 'texto'), wiki: () => envolver('[[', ']]', 'nombre de la nota'), codigo: () => envolver('`', '`', 'código'),
+};
+ventana.querySelector('.herramientas').addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (b) HERRAMIENTAS[b.dataset.h](); });
+$('notaFuente').addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const h = { b: 'negrita', i: 'cursiva', k: 'enlace' }[e.key.toLowerCase()];
+  if (h) { e.preventDefault(); HERRAMIENTAS[h](); }
+});
+$('copiarNota').addEventListener('click', async () => {
+  const ok = await copiar($('notaFuente').value);
+  $('editorEstado').textContent = ok ? 'copiado: pegalo en la nota' : 'no se pudo copiar: seleccioná el texto y copialo a mano';
+});
+$('descartarNota').addEventListener('click', async () => {
+  const f = $('notaFuente'); borradores.delete(f.dataset.rel);
+  f.value = (await textoDe(f.dataset.rel)) ?? ''; estadoEditor();
+});
+ventana.querySelector('.pestanas').addEventListener('click', (e) => { const b = e.target.closest('[data-modo]'); if (b) ponerModo(b.dataset.modo); });
+$('cerrarNota').addEventListener('click', () => cerrarFicha());
+async function copiar(texto) {
+  try { await navigator.clipboard.writeText(texto); return true; } catch { /* sin permiso: a la antigua */ }
+  const t = document.createElement('textarea'); t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+  document.body.append(t); t.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch { ok = false; }
+  t.remove(); return ok;
+}
+// Arrastrar la ventana de su barra (sin salirse de la pantalla); cambia el corrimiento de la cámara.
+{
+  let arr = null;
+  ventana.querySelector('.barra').addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button') || innerWidth <= 760) return;
+    const r = ventana.getBoundingClientRect();
+    arr = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    ventana.querySelector('.barra').setPointerCapture(e.pointerId);
+  });
+  ventana.querySelector('.barra').addEventListener('pointermove', (e) => {
+    if (!arr) return;
+    const r = ventana.getBoundingClientRect();
+    ventana.style.left = `${Math.min(innerWidth - 80, Math.max(80 - r.width, e.clientX - arr.dx))}px`;
+    ventana.style.top = `${Math.min(innerHeight - 48, Math.max(0, e.clientY - arr.dy))}px`;
+    ventana.style.right = 'auto';
+    corrimientoMeta();
+  });
+  ventana.querySelector('.barra').addEventListener('pointerup', () => { arr = null; });
+}
+// La cámara se corre para que la nota elegida quede en el espacio libre al lado de la ventana,
+// no detrás de ella (setViewOffset: mueve el centro de la vista sin mover la cámara).
+const corrimiento = { actual: 0, meta: 0 };
+function corrimientoMeta() {
+  if (selected < 0 || ventana.hidden || innerWidth <= 760) { corrimiento.meta = 0; return; }
+  const r = ventana.getBoundingClientRect(), W = innerWidth;
+  const izq = r.left, der = W - r.right;
+  if (Math.max(izq, der) < W * 0.22) { corrimiento.meta = 0; return; } // no queda lugar a ningún lado
+  corrimiento.meta = izq >= der ? W / 2 - izq / 2 : W / 2 - (r.right + W) / 2;
+}
+function openCard(i) {
+  selected = i;
+  const n = data.nodes[i];
+  $('notaTitulo').textContent = n.name;
+  $('notaRuta').textContent = n.rel;
+  pintarLado(i);
+  ventana.hidden = false;
+  ponerModo(borradores.has(n.rel) && modoNota === 'editar' ? 'editar' : 'leer');
+  ventana.querySelector('.principal').scrollTop = 0;
+  corrimientoMeta();
+}
+function cerrarFicha() {
+  if (selected < 0) return;
+  selected = -1; ventana.hidden = true; corrimiento.meta = 0;
+  history.replaceState(null, '', location.pathname + location.search);
+  flyHome();
+}
+let fly = null;
+let quieto = false; // un encuadre de verificación apaga la autorrotación
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+function flyCam(toPos, toTarget, dur = 1.3) { fly = { p0: camera.position.clone(), t0: controls.target.clone(), p1: toPos, t1: toTarget, t: 0, dur: RM ? Math.min(dur, 0.25) : dur }; }
+function flyTo(i) {
+  const p = pos[i].clone();
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  flyCam(p.clone().add(dir.multiplyScalar(size[i] * escala(i) * 4.2)), p);
+  openCard(i);
+  const h = `#${encodeURIComponent(data.nodes[i].rel)}`;
+  if (location.hash !== h) history.replaceState(null, '', h); // #<nota> en la URL (mapa ②)
+}
+function flyHome() { const h = HOME[view()]; flyCam(h.pos.clone(), h.target.clone(), 1.6); }
+const porRel = new Map(data.nodes.map((n, i) => [n.rel, i]));
+function irAlHash() {
+  const rel = decodeURIComponent(location.hash.slice(1));
+  const i = porRel.get(rel);
+  if (i !== undefined && i !== selected) flyTo(i);
+}
+addEventListener('hashchange', irAlHash);
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return;
+  mouse = { x: e.clientX, y: e.clientY }; // un toque elige lo que tocó, no lo del último movimiento
+  const i = pick();
+  // clic en el vacío: cierra, salvo que se esté editando (un clic al costado no tira la edición a la vista)
+  if (i >= 0) flyTo(i); else if (modoNota !== 'editar') cerrarFicha();
+});
+const escribiendo = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+function ocultarMenu(si = !document.body.classList.contains('sin-menu')) {
+  document.body.classList.toggle('sin-menu', si);
+  $('ocultar').textContent = si ? 'mostrar el menú' : 'ocultar';
+  $('ocultar').setAttribute('aria-pressed', String(si));
+}
+$('ocultar').addEventListener('click', () => ocultarMenu());
+addEventListener('keydown', (e) => {
+  if (e.key === 'h' && !e.ctrlKey && !e.metaKey && !e.altKey && !escribiendo(e.target) && $('primerPaso').hidden) { ocultarMenu(); return; }
+  if (e.key !== 'Escape') return;
+  // de lo más cercano a lo más lejano: el primer paso, la búsqueda escrita, la sección, la nota, la sesión elegida
+  if (!$('primerPaso').hidden) { cerrarPrimerPaso(); return; }
+  if (document.activeElement === $('q') && $('q').value) { $('q').value = ''; $('q').dispatchEvent(new Event('input')); return; }
+  if (abierta && !document.body.classList.contains('sin-menu')) abrirSeccion(abierta);
+  else if (selected >= 0) cerrarFicha();
+  else if (state.sesion) { state.sesion = null; aplicarFiltroSesion(); }
+});
+
+// ── Controles ───────────────────────────────────────────────────────────────
+function syncControls() {
+  $('hint').textContent = HINTS[view()];
+  document.querySelectorAll('button[data-k]').forEach((x) => {
+    const { k, v } = x.dataset;
+    if (k === 'play') { x.textContent = state.playing ? 'pausa' : 'seguir'; x.setAttribute('aria-pressed', String(!state.playing)); return; }
+    x.setAttribute('aria-pressed', String(String(state[k]) === v));
+    x.toggleAttribute('data-rec', k !== 'speed' && String(REC[k]) === v);
+  });
+  document.querySelectorAll('button[data-k="shape"]').forEach((x) => { x.disabled = state.depth !== 'order'; });
+}
+syncControls();
+function apply(changed) {
+  if (changed.some((k) => ['depth', 'shape', 'grouping', 'center'].includes(k))) targets = data.nodes.map((_, i) => targetOf(i));
+  if (changed.includes('grouping')) { recolor(); buildGalaxias(); }
+  if (changed.some((k) => ['lines', 'grouping', 'center'].includes(k))) classifyLines();
+  if (changed.some((k) => ['depth', 'shape'].includes(k)) && selected < 0) flyHome();
+  syncControls(); save();
+}
+document.querySelectorAll('button[data-k]').forEach((b) => b.addEventListener('click', () => {
+  const { k, v } = b.dataset;
+  if (k === 'play') { state.playing = !state.playing; syncControls(); return; }
+  state[k] = v;
+  apply([k]);
+}));
+$('reset').addEventListener('click', () => { Object.assign(state, REC); apply(Object.keys(REC)); });
+
+// ── El menú y sus secciones (mapa ①.c) ─────────────────────────────────────
+const S = data.sistema ?? null;
+let abierta = null;
+function acomodarSeccion() { $('seccion').style.top = `${Math.round($('tl').getBoundingClientRect().bottom - 4)}px`; }
+function abrirSeccion(id) {
+  abierta = abierta === id ? null : id;
+  document.body.classList.toggle('menu-abierto', !!abierta);
+  document.body.classList.toggle('ancha', abierta === 'orden');
+  document.querySelectorAll('#menu button').forEach((b) => b.setAttribute('aria-expanded', String(b.dataset.sec === abierta)));
+  document.querySelectorAll('.sec').forEach((s) => s.classList.toggle('abierta', s.dataset.sec === abierta));
+  acomodarSeccion();
+  if (abierta === 'buscar') setTimeout(() => $('q').focus(), 60);
+}
+document.querySelectorAll('#menu button').forEach((b) => b.addEventListener('click', () => abrirSeccion(b.dataset.sec)));
+$('seccion').addEventListener('click', (e) => { const a = e.target.closest('[data-ir]'); if (a) { e.preventDefault(); abrirSeccion(a.dataset.ir); } });
+const relativo = (t) => {
+  const m = Math.round((Date.now() - Date.parse(t)) / 60000);
+  return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`;
+};
+const num = (x) => `<span class="num">${esc(x)}</span>`;
+
+// Buscar: en el boceto filtra por nombre; lo encontrado se enciende en el espacio
+let hits = [];
+$('q').addEventListener('input', () => {
+  const q = $('q').value.trim().toLowerCase();
+  busqueda.fill(0); hayBusqueda = q.length > 0; hits = [];
+  if (hayBusqueda) for (let i = 0; i < N; i++) if (data.nodes[i].rel.toLowerCase().includes(q)) { busqueda[i] = 1; hits.push(i); }
+  hits.sort((a, b) => data.nodes[b].deg - data.nodes[a].deg);
+  $('resultados').innerHTML = !hayBusqueda ? ''
+    : hits.length ? hits.slice(0, 14).map((i) => `<li><a href="#${encodeURIComponent(data.nodes[i].rel)}">${esc(nombre(i))}</a> <span class="dim">· ${esc(nombreGrupo(i))}</span></li>`).join('') + (hits.length > 14 ? `<li class="dim">y ${hits.length - 14} más, encendidas en el espacio</li>` : '')
+    : '<li class="dim">Ningún nombre coincide. En la app esto busca por contenido, como la IA.</li>';
+});
+$('q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && hits.length) flyTo(hits[0]); });
+
+// ── El orden (mapa ①.d): lo que tenés, para qué la usás, el recorrido, el catálogo y la técnica ──
+// Todo lo que se toca es un BORRADOR sobre la config vigente: se copia, no se aplica solo (la app
+// lo escribe por la librería con autor «gui»; el boceto no tiene servidor).
+const VIG = S?.config ?? null, DEF = S?.defaults ?? null, U = S?.usos ?? null;
+let borrador = VIG ? structuredClone(VIG) : null;
+let usoElegido = null;
+const kb = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.round(b / 1024)} KB`);
+const pc = (x) => `${Math.round(x * 100)} %`;
+const escA = (s) => esc(s).replace(/"/g, '&quot;');
+const obtener = (o, clave) => clave.split('.').reduce((x, k) => x?.[k], o);
+function poner(o, clave, v) { const p = clave.split('.'); p.slice(0, -1).reduce((x, k) => x[k], o)[p.at(-1)] = v; }
+const EMB_MODELOS = /embed|bge|e5|minilm|mxbai|snowflake|gte/i;
+const usoDe = (id) => USOS.find((u) => u.id === id);
+const configDeUso = (u) => aplicarUso(VIG, u, U.senales, DEF);
+
+function renderTenes() {
+  const s = U.senales, mod = U.modelos, e = VIG.embeddings;
+  const instalados = mod ? mod.filter((m) => EMB_MODELOS.test(m)) : null;
+  $('tenes').innerHTML = [
+    ['tamaño', `${num(s.notas)} notas · ${num(kb(s.bytes))}, unos ${num(`${(s.tokens / 1e6).toFixed(2).replace('.', ',')} M`)} de tokens: ${s.bytes * 1.1 > 262144 ? 'no entra entera en ningún contexto' : 'entra entera en el contexto'}`],
+    ['idioma', `${num(pc(s.idioma.es))} en español · ${num(pc(s.idioma.en))} en inglés`],
+    ['cómo es', `código en el ${num(pc(s.codigo))} de las notas · cada una se conecta con ${num(Math.round(s.enlacesPorNota))} en promedio`],
+    ['cómo cambia', `el ${num(pc(s.cambio14))} cambió en los últimos 14 días · ${num(s.escritores7)} sesiones escribieron en 7 días`],
+    ['metadatos', `${num(s.frontmatter)} con frontmatter · ${num(s.fijas)} fijas · ${num(s.vencen)} con vencimiento`],
+    ['embedder', (e.provider === 'none' ? 'ninguno: la búsqueda es léxica' : `${num(e.model || e.module)} en ${esc(e.provider)}`)
+      + (instalados ? ` · en tu Ollama: ${instalados.map(num).join(' ') || 'ningún modelo de embeddings'}` : ' · <span class="dim">Ollama no respondió al exportar</span>')],
+  ].map(([t, x]) => `<div class="paso"><span class="sc">${t}</span>${x}</div>`).join('');
+}
+
+// La última corrida de cada juego medida con un uso (las del registro viejo no dicen uso: son la vigente)
+function corridas(uso) {
+  const out = new Map();
+  for (const r of S.analisis?.registro ?? []) if ((r.uso ?? 'vigente') === uso) out.set(r.juego, r);
+  return [...out.values()];
+}
+function lineaCorridas(uso) {
+  const rs = corridas(uso);
+  if (!rs.length) return null;
+  const x = (c) => `${c.hit}/${c.total}`;
+  const lector = rs[0].lector === 'lexical' ? 'léxico' : rs[0].lector === 'hybrid' ? 'híbrido' : rs[0].lector;
+  const u = rs.at(-1), con = u.set ? Object.entries(u.set).flatMap(([k, v]) => (v && typeof v === 'object' ? Object.entries(v).map(([k2, v2]) => `${k}.${k2} ${v2}`) : [`${k} ${v}`])) : [];
+  return rs.map((r) => `<span class="mono">${esc(r.juego)}</span> ${[['nota', r.nota], ['sección', r.seccion], ['ajenos', r.ajenos]].filter(([, c]) => c.total).map(([t, c]) => `<span class="dim">${t}</span> ${num(x(c))}`).join(' · ')}`).join('<br>')
+    + `<br><span class="dim">${lector} · ${cuando(u.fecha)}${con.length ? ` · con ${esc(con.join(', '))}` : ''}${u.raiz && u.raiz !== data.root ? ' · en una copia de la raíz' : ''}${rs[0].degradado ? ` · degradado: ${esc(rs[0].degradado)}` : ''}</span>`;
+}
+// Lo medido le gana a lo supuesto: si el uso y la vigente tienen corridas, se comparan los totales
+function veredicto(uso) {
+  const a = corridas(uso), b = corridas('vigente');
+  if (!a.length || !b.length || uso === 'vigente') return null;
+  const suma = (rs, m) => rs.reduce((t, r) => [t[0] + r[m].hit, t[1] + r[m].total], [0, 0]);
+  const [pa, pb, aa, ab] = [suma(a, 'nota'), suma(b, 'nota'), suma(a, 'ajenos'), suma(b, 'ajenos')];
+  const f = ([h, t]) => `${h}/${t}`, nombreU = usoDe(uso)?.nombre ?? uso;
+  const dif = (pa[0] - pb[0]) + (aa[0] - ab[0]);
+  const datos = `${f(pa)} aciertos contra ${f(pb)}, ajenos ${f(aa)} contra ${f(ab)}`;
+  if (pa[0] >= pb[0] && aa[0] >= ab[0] && dif > 0) return { gana: true, frase: `${nombreU} le gana a la vigente: ${datos}` };
+  if (dif === 0 && pa[0] === pb[0]) return { gana: false, frase: `${nombreU} empata con la vigente (${datos}): cambiar no compra nada` };
+  return { gana: false, frase: `${nombreU} no le gana a la vigente: ${datos}. Quedate con la vigente` };
+}
+function porQueSinMedir(u) {
+  const val = U.validez.find((v) => v.id === u.id);
+  if (!val.valido) return `No se puede medir así: ${esc(val.motivo)}. Elegí el archivo en la configuración técnica.`;
+  const c = configDeUso(u), e = c.embeddings;
+  if (cambiaEmbedder(VIG, c)) {
+    const falta = e.provider === 'ollama' && U.modelos && !U.modelos.includes(e.model) ? ` ${num(e.model)} no está en tu Ollama: <span class="mono">ollama pull ${esc(e.model)}</span> (≈ 1,2 GB).` : '';
+    return `Sin medir en esta raíz: cambia el embedder a ${num(e.model || e.module)}, y medirlo acá reescribiría los vectores que usan las sesiones abiertas. Se mide en una copia de la raíz.${falta}`;
+  }
+  return `Sin medir en esta raíz: <span class="mono">node medir-analisis.mjs &lt;raíz&gt; --uso ${esc(u.id)}</span>`;
+}
+
+function renderUsos() {
+  const rec = U.recomendado.id, retocado = usoElegido && diferencias(configDeUso(usoDe(usoElegido)), borrador).length > 0;
+  $('usos').innerHTML = USOS.map((u) => `<button data-uso="${u.id}" aria-pressed="${usoElegido === u.id}"${u.id === rec ? ' data-rec' : ''}>${esc(u.nombre)}${u.id === usoElegido && retocado ? ' <span class="parece">retocado</span>' : ''}${U.parecido === u.id ? '<span class="parece">la vigente se le parece</span>' : ''}</button>`).join('');
+  let h;
+  if (!usoElegido) {
+    const r = usoDe(rec), p = U.parecido ? usoDe(U.parecido) : null;
+    h = `<p>◆ <b>${esc(r.nombre)}</b>, porque ${esc(U.recomendado.porque)}.</p>`;
+    const v = veredicto(rec);
+    if (p && p.id !== rec) h += v
+      ? `<p style="font-size:13px">La vigente se parece a <b>${esc(p.nombre)}</b>. <span class="${v.gana ? '' : 'cambio'}">Medido acá: ${esc(v.frase)}.</span> <span class="dim">El ◆ sale de las señales; la medición manda.</span></p>`
+      : `<p class="dim" style="font-size:13px">La vigente se parece a <b>${esc(p.nombre)}</b>. Que ${esc(r.nombre)} rinda más acá es una hipótesis de la investigación, no una medición: ${porQueSinMedir(r).replace(/^Sin medir en esta raíz: /, '')}</p>`;
+    else if (!p) h += '<p class="dim" style="font-size:13px">La vigente no se parece a ningún uso: está hecha a medida.</p>';
+    h += '<p class="dim" style="font-size:13px">Elegí un uso para ver qué cambia.</p>';
+  } else {
+    const u = usoDe(usoElegido), medido = lineaCorridas(u.id), vig = lineaCorridas('vigente');
+    h = `<div class="paso"><span class="sc">sirve cuando</span>${esc(u.sirve)}</div><div class="paso"><span class="sc">lee con</span>${esc(u.lee)}</div>`;
+    if (u.nota) h += `<p class="dim" style="font-size:12.5px">${esc(u.nota)}.</p>`;
+    h += `<div class="paso medido"><span class="sc">medido con este uso</span>${medido ?? porQueSinMedir(u)}</div>`;
+    if (vig) h += `<div class="paso medido"><span class="sc">la vigente, para comparar</span>${vig}</div>`;
+    const v = veredicto(u.id);
+    if (v) h += `<p style="font-size:13px" class="${v.gana ? '' : 'cambio'}">${esc(v.frase)}.</p>`;
+  }
+  $('usoDetalle').innerHTML = h;
+}
+
+// El recorrido de una consulta con los valores del borrador; lo que cambia, en tungsteno con su «antes»
+const PASOS = [
+  ['qué entra', ['extensions', 'ignoreDirs', 'ignorePaths'], (c) => `los archivos ${num(c.extensions.join(' '))}, salvo ${num([...c.ignorePaths, ...c.ignoreDirs].join(', '))}`],
+  ['cómo se parte', ['guardLevels'], (c) => (c.guardLevels ? `en secciones, por encabezado; la guardia cuida hasta el nivel ${num('#'.repeat(c.guardLevels))}` : 'en secciones, por encabezado; la guardia está apagada (nivel 0)')],
+  ['qué vence o se fija', ['metadataAliases'], (c) => {
+    const alias = Object.entries(c.metadataAliases).filter(([, v]) => v.length).map(([k, v]) => `${k} (${v.join(', ')})`);
+    return `lo que diga el frontmatter en ${num('expires')}, ${num('superseded_by')} y ${num('pinned')}${alias.length ? `, más los alias ${num(alias.join(' · '))}` : ''}`;
+  }],
+  ['al abrir una sesión', ['wakeUpBudget'], (c) => (c.wakeUpBudget ? `recibe el paquete CAG: hasta ${num(kb(c.wakeUpBudget))}, con las fijas enteras y una línea por nota` : 'no recibe nada (el wake-up está apagado): busca cuando hace falta')],
+  ['quién busca', ['embeddings', 'ranking'], (c) => {
+    const e = c.embeddings, r = c.ranking;
+    if (e.provider === 'none') return `sólo léxico: BM25 (k1 ${num(r.k1)}, b ${num(r.b)})`;
+    const quien = e.provider === 'module' ? `tu módulo ${num(e.module || '(sin archivo)')}` : `${num(e.model)} en Ollama`;
+    return `híbrido: BM25 (k1 ${num(r.k1)}, b ${num(r.b)}) y embeddings de ${quien}, unidos por RRF (k ${num(r.rrfK)}) · <a href="#" data-ir="analisis">ver el análisis →</a>`;
+  }],
+  ['qué filtra', ['search.minLexical', 'search.minLexicalRatio', 'search.minCosine'], (c) => {
+    const s = c.search;
+    if (s.minLexical === 0) return 'nada: sin piso, pasa todo (hay que calibrarlo con el eval de la raíz)';
+    return `pasa una sección si su BM25 llega a ${num(s.minLexical)} (acotado a ${num(s.minLexicalRatio)} del máximo de la consulta)${c.embeddings.provider !== 'none' ? (s.minCosine >= 1 ? ' · el piso de coseno está apagado' : ` o su coseno a ${num(s.minCosine)}`) : ''}`;
+  }],
+  ['qué le llega a la IA', ['search.k'], (c) => `las ${num(c.search.k)} mejores secciones que pasan el piso`],
+];
+function renderRecorrido(cambiadas) {
+  const toca = (claves) => cambiadas.some((k) => claves.some((c) => k === c || k.startsWith(`${c}.`)));
+  $('recorrido').innerHTML = PASOS.map(([t, claves, frase]) => {
+    const c = toca(claves);
+    return `<div class="paso"><span class="sc${c ? ' cambio' : ''}">${t}</span>${frase(borrador)}${c ? `<span class="antes">antes: ${frase(VIG).replace(/ · <a .*$/, '')}</span>` : ''}</div>`;
+  }).join('');
+}
+
+const abiertosCat = new Set();
+const mayus = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function renderCatalogo() {
+  const on = usa(borrador, U.senales);
+  const lista = (xs) => xs.map((f) => `<details data-id="${f.id}" class="${on.has(f.id) ? 'on' : ''}"${abiertosCat.has(f.id) ? ' open' : ''}><summary>${esc(f.nombre)} <span class="estado">· ${esc(ESTADOS[f.estado])}</span></summary><p>${esc(mayus(f.que))}. ${esc(mayus(f.donde))}.</p></details>`).join('');
+  $('catalogo').innerHTML = `<div><span class="sc">leer el contexto</span>${lista(LECTORES)}</div><div><span class="sc">vectorizar el texto</span>${lista(VECTORES)}</div>`
+    + `<div style="grid-column:1/-1;margin-top:10px"><span class="sc">decidir antes de buscar · System One</span>${lista(DECISORES)}</div>`;
+}
+$('catalogo').addEventListener('toggle', (e) => { const d = e.target; if (d.dataset?.id) d.open ? abiertosCat.add(d.dataset.id) : abiertosCat.delete(d.dataset.id); }, true);
+
+// La configuración técnica: cada clave en su lugar. Lo que no está en un grupo va a «otras», así
+// una clave nueva de config.js aparece sola en vez de quedar escondida.
+const GRUPOS = [
+  ['el corpus', ['extensions', 'ignoreDirs', 'ignorePaths']],
+  ['la guardia y las sesiones', ['guard', 'guardLevels', 'leaseMinutes', 'activeWindowMinutes', 'activeWarnAt', 'lockTimeoutMs']],
+  ['al abrir una sesión', ['wakeUpBudget']],
+  ['el embedder', ['embeddings.provider', 'embeddings.model', 'embeddings.url', 'embeddings.timeoutMs', 'embeddings.queryPrefix', 'embeddings.documentPrefix', 'embeddings.module']],
+  ['la búsqueda', ['search.k', 'search.minLexical', 'search.minLexicalRatio', 'search.minCosine']],
+  ['el ranking', ['ranking.k1', 'ranking.b', 'ranking.rrfK']],
+  ['los metadatos', ['metadataAliases.expires', 'metadataAliases.superseded_by', 'metadataAliases.pinned']],
+  ['el archivo', ['version']],
+];
+const DESC = {
+  extensions: 'qué archivos son notas', ignoreDirs: 'carpetas que no entran, en cualquier nivel', ignorePaths: 'rutas desde la raíz que no entran',
+  guard: 'si una sesión saca secciones de otra: la niega, o la deja pasar y la asienta como autorizada',
+  guardLevels: 'hasta qué nivel de encabezado cuida la guardia; 0 la apaga, y también el registro de dueños',
+  leaseMinutes: 'cuántos minutos dura un permiso de allow', activeWindowMinutes: 'cuántos minutos después de su última señal una sesión cuenta como activa',
+  activeWarnAt: 'con cuántas sesiones activas avisa', lockTimeoutMs: 'cuánto espera el lock antes de rendirse, en ms',
+  wakeUpBudget: 'bytes del paquete CAG al abrir sesión; 0 lo apaga, y si no, al menos 1024',
+  'embeddings.provider': 'quién da los vectores: nadie (léxico), Ollama o un módulo tuyo', 'embeddings.model': 'el modelo de embeddings',
+  'embeddings.url': 'dónde escucha Ollama', 'embeddings.timeoutMs': 'cuánto espera un vector al buscar, en ms',
+  'embeddings.queryPrefix': 'lo que se antepone a la pregunta (nomic pide «search_query: »)', 'embeddings.documentPrefix': 'lo que se antepone a cada sección (nomic pide «search_document: »)',
+  'embeddings.module': 'el archivo que exporta createEmbedder, con provider «module»',
+  'search.k': 'cuántas secciones le llegan a la IA', 'search.minLexical': 'piso de BM25; 0 lo apaga y pasa todo',
+  'search.minLexicalRatio': 'el piso, acotado a esta parte del máximo posible de la consulta',
+  'search.minCosine': 'piso de coseno: lo semántico que pasa aunque no coincidan las palabras; 1 lo apaga',
+  'ranking.k1': 'BM25: cuánto vale repetir una palabra', 'ranking.b': 'BM25: cuánto se castiga lo largo (0 nada, 1 todo)',
+  'ranking.rrfK': 'RRF: cuánto pesan los primeros puestos al unir los dos rankings',
+  'metadataAliases.expires': 'otros nombres del campo expires en tu frontmatter', 'metadataAliases.superseded_by': 'otros nombres de superseded_by',
+  'metadataAliases.pinned': 'otros nombres de pinned', version: 'la versión del archivo (siempre 1)',
+};
+const OPCIONES = { guard: ['deny', 'record'], 'embeddings.provider': ['none', 'ollama', 'module'] };
+function hojas(o, pre = '') {
+  return Object.entries(o).flatMap(([k, v]) => {
+    const c = pre ? `${pre}.${k}` : k;
+    if (c === 'embeddings.options') return [];
+    return v && typeof v === 'object' && !Array.isArray(v) ? hojas(v, c) : [c];
+  });
+}
+function renderTecnica(cambiadas, malas) {
+  const agrupadas = new Set(GRUPOS.flatMap(([, ks]) => ks));
+  const otras = hojas(VIG).filter((k) => !agrupadas.has(k));
+  const grupos = otras.length ? [...GRUPOS, ['otras', otras]] : GRUPOS;
+  $('tecnica').innerHTML = grupos.map(([t, claves]) => `<div class="grupo-clave"><span class="sc">${t}</span>${claves.map((k) => {
+    const v = obtener(borrador, k), antes = obtener(VIG, k), cambio = cambiadas.includes(k), mal = malas.get(k);
+    const campo = OPCIONES[k]
+      ? `<span class="ops">${OPCIONES[k].map((o) => `<button data-k="${k}" data-v="${o}" aria-pressed="${v === o}">${o}</button>`).join('')}</span>`
+      : `<input data-k="${k}" value="${escA(Array.isArray(v) ? v.join(', ') : v)}" spellcheck="false" aria-label="${escA(k)}">`;
+    return `<div class="clave${cambio ? ' cambiada' : ''}"><span class="k">${esc(k)}</span>${campo}${cambio ? `<button class="volver" data-volver="${k}" title="volver a la vigente">↺</button>` : '<span></span>'}`
+      + `<span class="sub">${esc(DESC[k] ?? '')}${cambio ? ` · antes: <span class="mono">${esc(JSON.stringify(antes))}</span>` : ''}</span>${mal ? `<span class="mal">${esc(mal)}</span>` : ''}</div>`;
+  }).join('')}</div>`).join('');
+}
+function consecuencias(cambiadas) {
+  const out = [], toca = (p) => cambiadas.some((k) => k === p || k.startsWith(`${p}.`)), e = borrador.embeddings;
+  if (cambiaEmbedder(VIG, borrador)) {
+    out.push(`cambia el embedder: <span class="mono">mneme index</span> vuelve a embeber las ${num((S.analisis?.vectores?.secciones ?? 0).toLocaleString('es-AR'))} secciones con ${num(e.model || e.module || '(sin archivo)')}`);
+    if (e.provider === 'ollama' && U.modelos && !U.modelos.includes(e.model)) out.push(`${num(e.model)} no está en tu Ollama: antes, <span class="mono">ollama pull ${esc(e.model)}</span>`);
+  } else if (e.provider === 'none' && VIG.embeddings.provider !== 'none') out.push('la búsqueda pasa a ser sólo léxica');
+  if (toca('extensions') || toca('ignoreDirs') || toca('ignorePaths')) out.push('cambia qué entra: el índice se pone al día en la próxima búsqueda');
+  if (toca('guard') && borrador.guard === 'record') out.push('una escritura que saca secciones de otra sesión pasa, asentada como autorizada; los dueños reciben el aviso igual');
+  if (toca('guardLevels') && borrador.guardLevels === 0) out.push('la guardia se apaga, y también el registro de dueños');
+  if (toca('search.minCosine') && borrador.search.minCosine >= 1 && e.provider !== 'none') out.push('el piso de coseno queda apagado: pasa lo que pasa por BM25 hasta recalibrarlo con el eval');
+  if (toca('wakeUpBudget')) out.push(borrador.wakeUpBudget ? `cada sesión nueva arranca con hasta ${num(kb(borrador.wakeUpBudget))} de contexto` : 'las sesiones arrancan sin paquete');
+  if (cambiadas.length && !out.length) out.push('nada más que lo que dicen las claves: rige en la próxima búsqueda');
+  return out;
+}
+
+function renderOrden() {
+  if (!VIG || !U) { $('recorrido').innerHTML = '<p class="dim">El export no trae la configuración.</p>'; return; }
+  const cambiadas = diferencias(VIG, borrador).map(([k]) => k);
+  const malas = new Map(validar(borrador, DEF));
+  renderTenes(); renderUsos(); renderRecorrido(cambiadas); renderCatalogo(); renderTecnica(cambiadas, malas);
+  $('consecuencias').innerHTML = cambiadas.length ? consecuencias(cambiadas).map((x) => `<li>${x}</li>`).join('') : '<li class="dim">Nada: el borrador es la vigente.</li>';
+  $('copiarConfig').disabled = !cambiadas.length || malas.size > 0;
+  $('copiarConfig').title = malas.size ? 'Hay una clave inválida: una config inválida tira la raíz y los hooks de todas las sesiones' : '';
+  $('volverVigente').disabled = !cambiadas.length;
+  $('volverRec').disabled = usoElegido === U.recomendado.id && !diferencias(configDeUso(usoDe(usoElegido)), borrador).length;
+}
+function elegirUso(id) { usoElegido = id; borrador = configDeUso(usoDe(id)); $('configCopiada').textContent = ''; renderOrden(); }
+$('usos').addEventListener('click', (e) => { const b = e.target.closest('button[data-uso]'); if (b) elegirUso(b.dataset.uso); });
+$('volverRec').addEventListener('click', () => elegirUso(U.recomendado.id));
+$('volverVigente').addEventListener('click', () => { usoElegido = null; borrador = structuredClone(VIG); $('configCopiada').textContent = ''; renderOrden(); });
+$('tecnica').addEventListener('click', (e) => {
+  const op = e.target.closest('button[data-k]'), vuelta = e.target.closest('button[data-volver]');
+  if (op) { poner(borrador, op.dataset.k, op.dataset.v); renderOrden(); }
+  if (vuelta) { poner(borrador, vuelta.dataset.volver, structuredClone(obtener(VIG, vuelta.dataset.volver))); renderOrden(); }
+});
+$('tecnica').addEventListener('change', (e) => {
+  const inp = e.target.closest('input[data-k]'); if (!inp) return;
+  const k = inp.dataset.k, antes = obtener(VIG, k), txt = inp.value.trim();
+  let v;
+  if (Array.isArray(antes)) v = txt ? txt.split(',').map((x) => x.trim()).filter(Boolean) : [];
+  else if (typeof antes === 'number') { const n = Number(txt.replace(',', '.')); v = txt !== '' && Number.isFinite(n) ? n : txt; } // un número mal escrito queda texto: validar lo marca
+  else v = inp.value; // los prefijos llevan su espacio final: no se recorta
+  poner(borrador, k, v); renderOrden();
+});
+// «copiar config.json»: sólo lo que cambió, como un objeto para fusionar (el mismo camino que el :root)
+$('copiarConfig').addEventListener('click', async () => {
+  const dif = diferencias(VIG, borrador);
+  if (!dif.length || validar(borrador, DEF).length) return;
+  const texto = JSON.stringify(parcheDe(dif), null, 2);
+  // El reglamento del espacio («Changing how Mneme works») le dice a Claude cómo aplicarlo: con el OK de
+  // la persona, fusionando, y con mneme doctor. El servidor de búsqueda lee la config al arrancar
+  // (informe QoL 26/09: no la relee en la sesión), por eso se reabre Claude Code.
+  const pie = 'Pegáselo a Claude en tu espacio: te muestra el cambio, lo fusiona en .mneme/config.json de tu carpeta de notas con tu OK y lo revisa con mneme doctor. Después abrí de nuevo Claude Code para que la búsqueda lo tome.';
+  $('configCopiada').textContent = `${texto}\n${pie}`;
+  try {
+    await Promise.race([navigator.clipboard.writeText(texto), new Promise((_, no) => setTimeout(() => no(new Error('sin respuesta')), 1500))]);
+    $('configCopiada').textContent = `copiado ✓\n${texto}\n${pie}`;
+  } catch { $('configCopiada').textContent = `(no se pudo copiar solo: seleccionalo)\n${texto}\n${pie}`; }
+});
+function renderAnalisis() {
+  const el = $('analisis'), A = S?.analisis;
+  if (!A) { el.innerHTML = '<p class="dim">El export no trae el análisis.</p>'; return; }
+  const v = A.vectores, s = S.config.search, x = (c) => (c.total ? `${c.hit}/${c.total}` : '—');
+  let h = '<h3>embedder</h3>';
+  h += v ? `<p>${num(v.modelo.split(' [')[0])} · ${num(v.dims)} dimensiones · ${num(v.secciones.toLocaleString('es-AR'))} secciones con vector · índice ${relativo(v.actualizado)}</p>`
+    : '<p>La búsqueda es sólo léxica: no hay embeddings configurados. Se cambia en <a href="#" data-ir="orden">El orden</a>.</p>';
+  h += `<h3>pisos vigentes</h3><p>BM25 ≥ ${num(s.minLexical)} (o ≥ ${num(s.minLexicalRatio)} del máximo) · coseno ≥ ${num(s.minCosine)} · se traen ${num(s.k)}</p>`;
+  h += `<h3>juegos de casos</h3><ul>${A.juegos.map((j) => `<li><span class="mono">${esc(j.juego)}</span> <span class="dim">· ${j.casos} casos</span></li>`).join('') || '<li class="dim">No hay casos.</li>'}</ul>`;
+  // lo medido por uso (mapa ①.d, Probar): la última corrida de cada uso, lado a lado
+  const usosMedidos = [...new Set(A.registro.map((r) => r.uso ?? 'vigente'))];
+  if (usosMedidos.length > 1) {
+    h += '<h3>por uso · la última corrida de cada uno</h3><ul class="registro">';
+    h += usosMedidos.map((u) => `<li><span>${esc(u === 'vigente' ? 'la vigente' : usoDe(u)?.nombre ?? u)}</span><span>${lineaCorridas(u)}</span></li>`).join('');
+    h += '</ul>';
+  }
+  h += '<h3>registro de mediciones</h3>';
+  h += !A.registro.length ? '<p>Todavía no se midió. Corré <span class="mono">mneme eval &lt;casos.json&gt;</span>.</p>'
+    : `<ul class="registro">${[...A.registro].reverse().map((r) => `<li><span class="mono">${cuando(r.fecha)}</span><span><span class="mono">${esc(r.juego)}</span> · ${esc(r.uso && r.uso !== 'vigente' ? usoDe(r.uso)?.nombre ?? r.uso : 'la vigente')} · ${esc(r.lector)}${r.degradado ? ` <span class="dim">(${esc(r.degradado)})</span>` : ''}<br><span class="dim">nota</span> ${num(x(r.nota))} · <span class="dim">sección</span> ${num(x(r.seccion))} · <span class="dim">ajenos</span> ${num(x(r.ajenos))}</span></li>`).join('')}</ul>`;
+  h += '<p class="dim" style="font-size:12.5px;margin-top:14px">Hoy no hay registro: <span class="mono">mneme eval --results</span> escribe los casos de una corrida y pisa el archivo. Este sale de <span class="mono">medir-analisis.mjs</span>; en la app, cada corrida se agrega a <span class="mono">.mneme/run/evals.jsonl</span>.</p>';
+  el.innerHTML = h;
+}
+function renderSalud() {
+  const s = S?.salud; if (!s) { $('salud').innerHTML = '<p class="dim">El export no trae la salud.</p>'; return; }
+  const mal = s.perdidas.length > 0 || s.libro.broken > 0 || s.libro.corrupt > 0;
+  document.querySelector('#menu button[data-sec="salud"]').classList.toggle('alarma', mal); // la palabra es el indicador
+  $('salud').innerHTML = `<h3>desde la instalación</h3>
+    <p>${num(s.perdidas.length)} pérdidas · ${num(s.choques)} choques (${num(s.bifurcaciones)} bifurcaciones) · ${num(s.autorizadas)} autorizadas · ${num(s.frenadas)} frenada/s por la guardia · ${num(s.sinAsentar)} notas sin asentar</p>
+    ${s.perdidas.map((l) => `<p style="color:var(--acento)">${esc(l.kind)}: ${esc(l.detail)}</p>`).join('')}
+    <h3>el libro</h3><p>${num(s.asientos)} asientos · ${s.libro.broken || s.libro.corrupt ? `<span style="color:var(--acento)">cadena rota (${s.libro.broken}) · ilegibles (${s.libro.corrupt})</span>` : 'la cadena está intacta'}</p>
+    <p class="dim" style="font-size:12.5px">«Sin asentar»: notas cuyo contenido en disco no es el último del libro; las registra el próximo acceso o <span class="mono">mneme scan</span>.</p>`;
+}
+function renderPerfil() {
+  const p = S?.perfil; if (!p) { $('perfil').innerHTML = '<p class="dim">El export no trae el perfil.</p>'; return; }
+  $('perfil').innerHTML = `<h3>vos</h3><p>${num(p.vos)}</p><p class="dim" style="font-size:12.5px">Así se firman tus escrituras en el libro: usuario@máquina.</p>
+    <h3>quién escribe acá</h3><ul>${p.autores.map((a) => `<li><span class="mono"${a.quien === p.vos ? ' style="color:var(--acento)"' : ''}>${esc(a.quien)}</span> <span class="dim">· ${esc(a.agente)}</span><br>${num(a.escrituras)} <span class="dim">escrituras</span>${a.adopciones ? ` · ${num(a.adopciones)} <span class="dim">adoptadas al instalar</span>` : ''} <span class="dim">· la última ${cuando(a.ultimo)}</span></li>`).join('')}</ul>
+    <h3>raíces que gobernás</h3><ul>${p.raices.map((r) => `<li class="mono">${esc(r)}</li>`).join('') || '<li class="dim">Ninguna registrada.</li>'}</ul>`;
+}
+renderOrden(); renderAnalisis(); renderSalud(); renderPerfil();
+
+// Opciones: movimiento y nitidez (preferencias de la GUI)
+function syncOpciones() {
+  const dpr = renderer.getPixelRatio();
+  document.querySelectorAll('button[data-op]').forEach((b) => {
+    const on = b.dataset.op === 'rm' ? String(+RM) === b.dataset.v : Math.abs(Number(b.dataset.v) - dpr) < 0.01;
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+document.querySelectorAll('button[data-op]').forEach((b) => b.addEventListener('click', () => {
+  if (b.dataset.op === 'rm') RM = b.dataset.v === '1';
+  else { renderer.setPixelRatio(Number(b.dataset.v)); renderer.setSize(innerWidth, innerHeight); }
+  syncOpciones();
+}));
+syncOpciones();
+
+// El ajuste fino (abanico, paso 5): un control por token; «copiar :root» da el diff
+const AJUSTES = [
+  ['nebulosa', '--neb-brillo', 'brillo', 0.3, 2, 0.05],
+  ['nebulosa', '--neb-absorcion', 'cuánto tapa', 0, 1.2, 0.05],
+  ['nebulosa', '--neb-desenfoque', 'foco (más = menos borroso)', 30, 400, 5],
+  ['nebulosa', '--cuadro-tamano', 'tamaño del cuadro', 0.6, 1.8, 0.05],
+  ['líneas', '--linea-principal', 'principales', 0, 0.6, 0.01],
+  ['líneas', '--linea-secundaria', 'las demás (× principal)', 0, 1, 0.05],
+  ['líneas', '--linea-ancho', 'ancho del núcleo', 0.6, 4, 0.1],
+  ['líneas', '--linea-material', 'intensidad del material', 0, 2, 0.05],
+  ['líneas', '--linea-radio', 'radio que ilumina la luz', 0, 60, 1],
+  ['luz', '--luz-ilumina', 'cuánto ilumina', 0, 1.2, 0.05],
+  ['luz', '--halo', 'halo de lejos', 0, 3, 0.1],
+  ['luz', '--galaxia-brillo', 'galaxias', 0, 2.5, 0.05],
+  ['interfaz', '--acento', 'acento', 'color'],
+  ['interfaz', '--texto', 'texto', 12, 18, 0.5, 'px'],
+  ['interfaz', '--titulo', 'título', 18, 40, 1, 'px'],
+  ['interfaz', '--borde', 'margen del borde', 12, 60, 2, 'px'],
+  ['velo del menú', '--velo-opacidad', 'oscuridad', 0.3, 1, 0.02],
+  ['velo del menú', '--velo-desenfoque', 'desenfoque', 0, 24, 1, 'px'],
+  ['velo del menú', '--velo-ancho', 'ancho', 340, 760, 10, 'px'],
+  ['partitura', '--voz-alto', 'alto de cada voz', 6, 16, 1, 'px'],
+];
+const csRoot = getComputedStyle(document.documentElement);
+const ORIGINAL = Object.fromEntries(AJUSTES.map(([, t]) => [t, csRoot.getPropertyValue(t).trim()]));
+function valorDe(t) { return getComputedStyle(document.documentElement).getPropertyValue(t).trim(); }
+function alCambiar(t) {
+  leerTokens();
+  if (t === '--voz-alto' && EV.length) { ROW = TK.voz; layoutScore(); marcasHora = horas(); }
+  if (['--titulo', '--texto', '--borde'].includes(t)) acomodarSeccion();
+}
+let grupoAnterior = '';
+$('ajustes').innerHTML = AJUSTES.map(([g, t, nombreAj, min, max, step, unidad = '']) => {
+  const cab = g !== grupoAnterior ? `<div class="sc" style="margin:12px 0 2px">${g}</div>` : '';
+  grupoAnterior = g;
+  const v = ORIGINAL[t];
+  const input = min === 'color' ? `<input type="color" data-t="${t}" value="${v.toLowerCase()}">`
+    : `<input type="range" data-t="${t}" min="${min}" max="${max}" step="${step}" value="${parseFloat(v)}" data-u="${unidad}">`;
+  return `${cab}<div class="ajuste" data-t="${t}"><label title="${t}">${nombreAj}</label>${input}<output>${esc(v)}</output><button data-reset="${t}" title="volver al token">↺</button></div>`;
+}).join('');
+$('ajustes').addEventListener('input', (e) => {
+  const inp = e.target.closest('input[data-t]'); if (!inp) return;
+  const t = inp.dataset.t, val = inp.type === 'color' ? inp.value : `${inp.value}${inp.dataset.u || ''}`;
+  rootStyle.setProperty(t, val);
+  const fila = inp.closest('.ajuste');
+  fila.querySelector('output').textContent = val;
+  fila.classList.toggle('cambiado', val.toLowerCase() !== ORIGINAL[t].toLowerCase());
+  alCambiar(t);
+});
+$('ajustes').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-reset]'); if (!b) return;
+  const t = b.dataset.reset; rootStyle.removeProperty(t);
+  const fila = b.closest('.ajuste'), inp = fila.querySelector('input');
+  inp.value = inp.type === 'color' ? ORIGINAL[t].toLowerCase() : parseFloat(ORIGINAL[t]);
+  fila.querySelector('output').textContent = ORIGINAL[t]; fila.classList.remove('cambiado');
+  alCambiar(t);
+});
+$('copiarRoot').addEventListener('click', async () => {
+  const cambios = AJUSTES.map(([, t]) => t).filter((t) => rootStyle.getPropertyValue(t) && valorDe(t).toLowerCase() !== ORIGINAL[t].toLowerCase());
+  const texto = cambios.length ? `:root {\n${cambios.map((t) => `  ${t}: ${valorDe(t)}; /* antes ${ORIGINAL[t]} */`).join('\n')}\n}` : '';
+  if (!texto) { $('copiado').textContent = 'No cambiaste ningún token.'; return; }
+  // el bloque se muestra ya: el portapapeles sin foco deja la promesa colgada y no se veía nada
+  $('copiado').textContent = texto;
+  try {
+    await Promise.race([navigator.clipboard.writeText(texto), new Promise((_, no) => setTimeout(() => no(new Error('sin respuesta')), 1500))]);
+    $('copiado').textContent = `copiado ✓\n${texto}`;
+  } catch { $('copiado').textContent = `(no se pudo copiar solo: seleccionalo)\n${texto}`; }
+});
+$('resetTodo').addEventListener('click', () => {
+  for (const [, t] of AJUSTES) rootStyle.removeProperty(t);
+  document.querySelectorAll('.ajuste').forEach((fila) => {
+    const t = fila.dataset.t, inp = fila.querySelector('input');
+    inp.value = inp.type === 'color' ? ORIGINAL[t].toLowerCase() : parseFloat(ORIGINAL[t]);
+    fila.querySelector('output').textContent = ORIGINAL[t]; fila.classList.remove('cambiado');
+  });
+  leerTokens(); if (EV.length) { ROW = TK.voz; layoutScore(); marcasHora = horas(); } acomodarSeccion();
+  $('copiado').textContent = '';
+});
+
+// ── Opciones → apariencia: administrar los packs (spec «Packs de la GUI v2», 26/09) ──
+// Artu (26/09 22:58): «un espacio para administrarlo en opciones». Usar uno recarga la página (el dibujo
+// lee la escena al armarse). Crear, guardar y borrar los hace el servidor (servir.mjs), que valida con
+// el cargador de la app antes de escribir y manda lo borrado a una papelera. Los de fábrica no se tocan.
+let carpetaPacks = null, tokenSesion = null;
+async function accionPack(accion, cuerpo) {
+  if (!tokenSesion) tokenSesion = (await (await fetch('sesion.json')).json()).token;
+  const r = await fetch(`packs/${accion}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-mneme-token': tokenSesion }, body: JSON.stringify(cuerpo) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error ?? `el servidor respondió ${r.status}`);
+  return j;
+}
+function usarPack(nombre) {
+  escribirLS(PACK_KEY, nombre || null);
+  const u = new URL(location.href); u.searchParams.delete('pack'); location.replace(u);
+}
+// Lo que se ve ahora: TODOS los tokens que declara el :root de la página (leídos de su hoja de estilo, no
+// de una lista) con su valor vigente (el pack y el ajuste fino incluidos), y la escena vigente.
+function lookActual() {
+  const hoja = [...document.styleSheets].find((s) => s.ownerNode?.tagName === 'STYLE' && !s.ownerNode.id);
+  const regla = [...(hoja?.cssRules ?? [])].find((r) => r.selectorText === ':root');
+  const cs = getComputedStyle(document.documentElement);
+  return { tokens: Object.fromEntries([...(regla?.style ?? [])].filter((p) => p.startsWith('--')).map((t) => [t, cs.getPropertyValue(t).trim()])), escena: ESCENA };
+}
+const ajustesCambiados = () => AJUSTES.map(([, t]) => t).filter((t) => rootStyle.getPropertyValue(t) && valorDe(t).toLowerCase() !== ORIGINAL[t].toLowerCase());
+function avisoPack(html) { $('packCopiado').innerHTML = html; }
+async function pintarPacks() {
+  let lista = null;
+  try { const r = await fetch('packs.json'); if (r.ok) { const j = await r.json(); lista = j.packs; carpetaPacks = j.carpeta; } } catch { lista = null; }
+  const actual = PACK?.name ?? null;
+  const fila = (p) => `<li><button data-usar="${escA(p.name)}" aria-pressed="${p.name === actual}"${p.estado !== 'ok' ? ' disabled' : ''}>${esc(p.name)}</button>`
+    + `<span class="de">${p.propio ? 'tuyo' : 'de fábrica'}</span>`
+    + (p.estado !== 'ok' ? `<span class="roto" title="${escA(p.estado)}">no carga: ${esc(p.estado.replace(/^Pack refused \([^)]*\): /, ''))}</span>` : '')
+    + (p.propio ? `<button class="borrar" data-borrar="${escA(p.name)}">borrar</button>` : '')
+    + (p.description ? `<span class="desc">${esc(p.description)}</span>` : '') + '</li>';
+  $('packs').innerHTML = `<li><button data-usar="" aria-pressed="${!actual}">cámara oscura</button><span class="de">de fábrica · la base</span></li>` + (lista ?? []).map(fila).join('');
+  const info = [];
+  if (packError) info.push(`<span class="cambio">No se pudo aplicar el pack ${esc(packError)}</span>. Se ve la cámara oscura.`);
+  if (escenaDesconocida.length) info.push(`<span class="cambio">El dibujo no conoce ${escenaDesconocida.map((k) => `<span class="mono">escena.${esc(k)}</span>`).join(', ')}</span>: ${escenaDesconocida.length === 1 ? 'no se usa' : 'no se usan'}.`);
+  if (!lista) info.push('Para administrar los packs, abrí la galaxia con <span class="mono">mneme galaxia</span>.');
+  $('packInfo').innerHTML = info.join(' ');
+  $('packNuevo').hidden = !lista; $('copiarCarpeta').hidden = !carpetaPacks;
+  $('guardarAjuste').hidden = !PACK?.propio;
+  if (PACK?.propio) $('guardarAjuste').textContent = `guardar el ajuste fino en «${PACK.name}»`;
+}
+pintarPacks();
+$('packs').addEventListener('click', async (e) => {
+  const u = e.target.closest('[data-usar]'); if (u) { usarPack(u.dataset.usar); return; }
+  const b = e.target.closest('[data-borrar]'); if (!b) return;
+  const nombre = b.dataset.borrar;
+  if (!confirm(`¿Mandar «${nombre}» a la papelera? Queda en la carpeta de tus packs, en .papelera, y se puede recuperar.`)) return;
+  try {
+    await accionPack('borrar', { nombre });
+    if (PACK?.name === nombre) { usarPack(''); return; }
+    avisoPack(`«${esc(nombre)}» está en la papelera.`); pintarPacks();
+  } catch (err) { avisoPack(`<span class="cambio">${esc(err.message)}</span>`); }
+});
+$('crearPack').addEventListener('click', async () => {
+  const nombre = $('packNombre').value.trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(nombre)) { avisoPack('<span class="cambio">El nombre va en minúsculas, dígitos y guiones (por ejemplo: mi-pack).</span>'); $('packNombre').focus(); return; }
+  try {
+    await accionPack('crear', { nombre, descripcion: $('packDescripcion').value.trim(), ...lookActual() });
+    usarPack(nombre);
+  } catch (err) { avisoPack(`<span class="cambio">${esc(err.message)}</span>`); }
+});
+$('guardarAjuste').addEventListener('click', async () => {
+  const cambios = ajustesCambiados();
+  if (!cambios.length) { avisoPack('El ajuste fino no cambió nada todavía: movelo en «ajuste fino», acá abajo.'); return; }
+  try {
+    await accionPack('guardar', { nombre: PACK.name, tokens: Object.fromEntries(cambios.map((t) => [t, valorDe(t)])) });
+    for (const t of cambios) rootStyle.removeProperty(t);
+    usarPack(PACK.name);
+  } catch (err) { avisoPack(`<span class="cambio">${esc(err.message)}</span>`); }
+});
+$('copiarPack').addEventListener('click', async () => {
+  const look = lookActual();
+  const pack = { packFormat: 2, name: 'mi-pack', version: '0.1.0', description: 'Qué es, en una línea.', author: '', license: 'MIT', ...look };
+  const ok = await copiar(JSON.stringify(pack, null, 2));
+  avisoPack(ok ? `Copiado: ${Object.keys(look.tokens).length} tokens y la escena, con los valores que ves ahora. Más fácil: «crear con lo que ves», arriba.` : 'No se pudo copiar.');
+});
+$('copiarCarpeta').addEventListener('click', async () => {
+  avisoPack((await copiar(carpetaPacks)) ? `Copiada: ${esc(carpetaPacks)}` : esc(carpetaPacks));
+});
+
+// ── La entrada: la mente se forma desde el fondo ────────────────────────────
+const introStart = new Float32Array(N);
+data.nodes.map((_, i) => i).sort((a, b) => cur[a].z - cur[b].z).forEach((i, r) => { introStart[i] = RM ? 0 : 0.2 + (r / N) * 1.8; });
+flyCam(HOME[view()].pos.clone(), HOME[view()].target.clone(), 3.2);
+if (location.hash) setTimeout(irAlHash, RM ? 100 : 3400);
+
+// ── El loop ─────────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+let elapsed = 0, fpsAcc = 0, fpsN = 0;
+const lp = lightG.attributes, ha = halo.attributes;
+const lastTarget = controls.target.clone();
+window.__boceto = { estado: 'datos', nodes: N, edges: E, events: EV.length, fps: 0, fired: () => evIdx + vueltas * EV.length, state, flyTo, byName: (s) => data.nodes.findIndex((n) => n.name === s),
+  // para verificar a mano: un encuadre fijo, sin autorrotación (comparar materiales desde el mismo lugar)
+  encuadre: (p, t) => { quieto = true; flyCam(new THREE.Vector3(...p), new THREE.Vector3(...t), 0.4); }, centro: (i) => pos[i].toArray() };
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt; fpsAcc += dt; fpsN++;
+  if (fpsAcc > 2) { window.__boceto.fps = +(fpsN / fpsAcc).toFixed(1); fpsAcc = 0; fpsN = 0; }
+  frameMat.uniforms.uTime.value = elapsed;
+  cieloMat.uniforms.uTime.value = RM ? 0 : elapsed; // con movimiento reducido, el fondo se queda quieto
+  cielo.position.copy(camera.position); // el fondo acompaña a la cámara: gira con la vista, no se acerca
+  if (corrimiento.actual !== corrimiento.meta) {
+    corrimiento.actual += (corrimiento.meta - corrimiento.actual) * (RM ? 1 : Math.min(1, dt * 5));
+    if (Math.abs(corrimiento.meta - corrimiento.actual) < 0.5) corrimiento.actual = corrimiento.meta;
+    if (corrimiento.actual === 0) camera.clearViewOffset();
+    else camera.setViewOffset(innerWidth, innerHeight, corrimiento.actual, 0, innerWidth, innerHeight);
+  }
+  controls.autoRotate = !RM && !quieto && state.depth !== 'time' && selected < 0 && !fly && !state.sesion;
+  if (fly) {
+    fly.t = Math.min(1, fly.t + dt / fly.dur);
+    const k = ease(fly.t);
+    camera.position.lerpVectors(fly.p0, fly.p1, k); controls.target.lerpVectors(fly.t0, fly.t1, k);
+    if (fly.t >= 1) fly = null;
+  } else if (selected >= 0) {
+    // la cámara sigue a la nota elegida si el orden cambia (antes la perdía: lente de mecánica)
+    const d = pos[selected].clone().sub(controls.target).multiplyScalar(Math.min(1, dt * 4));
+    controls.target.add(d); camera.position.add(d);
+  }
+  controls.update();
+  const F = foco();
+  frameMat.uniforms.uFocus.value = F; lineMat.uniforms.uFocus.value = F;
+  const U = frameMat.uniforms; U.uEmit.value = TK.brillo; U.uAbs.value = TK.absorcion; U.uDof.value = TK.desenfoque; U.uLitK.value = TK.ilumina;
+
+  // mover los nodos hacia su lugar; cuánto se mueven apaga las líneas en la transición (P7)
+  const blend = 1 - Math.exp(-dt * 2.6);
+  let mov = 0;
+  const flota = RM ? 0 : 0.9;
+  if (vecinoDe !== hovered) { vecino.fill(0); if (hovered >= 0) for (const j of adj[hovered]) vecino[j] = 1; vecinoDe = hovered; }
+  for (let i = 0; i < N; i++) {
+    mov += cur[i].distanceTo(targets[i]);
+    cur[i].lerp(targets[i], blend);
+    const s = seedPrev[i] * 0 + rnd01(i) * 6.283;
+    pos[i].set(cur[i].x + Math.sin(elapsed * 0.33 + s) * flota, cur[i].y + Math.cos(elapsed * 0.27 + s * 1.3) * flota, cur[i].z + Math.sin(elapsed * 0.21 + s * 0.7) * flota);
+    fade[i] = Math.min(1, Math.max(0, (elapsed - introStart[i]) / 0.6));
+    glow[i] *= Math.exp(-dt * 0.7);
+    if (forma[i] < 1) { forma[i] = Math.min(1, forma[i] + dt / 1.1); if (forma[i] >= 1) seedPrev[i] = seedNext[i]; }
+    hoverGlow[i] += ((i === hovered || i === selected ? 0.9 : vecino[i] ? 0.35 : busqueda[i] ? 0.55 : 0) - hoverGlow[i]) * Math.min(1, dt * 8);
+    tmp.copy(pos[i]).sub(camera.position);
+    profundidad[i] = tmp.lengthSq();
+  }
+  mov /= N;
+  const lineasTransicion = 1 - smoothstep(4, 30, mov);
+
+  // de atrás hacia adelante: la mezcla premultiplicada lo necesita
+  ordenIdx.sort((a, b) => profundidad[b] - profundidad[a]);
+  for (let k = 0; k < N; k++) {
+    const i = ordenIdx[k];
+    aOffset.setXYZ(k, pos[i].x, pos[i].y, pos[i].z);
+    aSize.setX(k, size[i] * escala(i) * TK.cuadro);
+    aSeed2.setXY(k, seedPrev[i], seedNext[i]);
+    aColor.setXYZ(k, colorGrupo[i].r, colorGrupo[i].g, colorGrupo[i].b);
+    aLive.setXYZW(k, glow[i] + hoverGlow[i], forma[i], fade[i] * filtro[i] * (hayBusqueda && !busqueda[i] ? 0.3 : 1), formaExt[i]);
+  }
+  aOffset.needsUpdate = aSize.needsUpdate = aSeed2.needsUpdate = aColor.needsUpdate = aLive.needsUpdate = true;
+
+  // halos: se ven de lejos, cero de cerca
+  for (let i = 0; i < N; i++) {
+    const d = Math.sqrt(profundidad[i]);
+    ha.position.setXYZ(i, pos[i].x, pos[i].y, pos[i].z);
+    ha.aCol.setXYZ(i, colorGrupo[i].r, colorGrupo[i].g, colorGrupo[i].b);
+    ha.aSize.setX(i, size[i] * escala(i) * TK.cuadro * 2.6);
+    ha.aAlpha.setX(i, (0.11 + 0.5 * (glow[i] + hoverGlow[i] + (busqueda[i] ? 0.8 : 0))) * smoothstep(120, 560, d) * fade[i] * filtro[i] * TK.halo);
+  }
+  ha.position.needsUpdate = ha.aCol.needsUpdate = ha.aSize.needsUpdate = ha.aAlpha.needsUpdate = true;
+
+  // las líneas
+  const linesIn = Math.min(1, Math.max(0, (elapsed - 2.2) / 1.2)) * lineasTransicion;
+  // qué luz recorre cada wikilink ahora (la de la vuelta anterior del loop: un cuadro de atraso, invisible)
+  if (malHasta !== evIdx) estadoHasta(evIdx);
+  const malPaso = RM ? 1 : Math.min(1, dt * 1.4); // la transformación tarda ~1,5 s
+  const luzEn = new Map();
+  for (const L of lights) {
+    const alive = Math.max(0, 1 - Math.max(0, L.idle - 20) / 6);
+    if (L.edge >= 0 && alive > 0 && !luzEn.has(L.edge)) luzEn.set(L.edge, { L, alive });
+  }
+  data.edges.forEach(([a, b], e) => {
+    lA.setXYZ(e, pos[a].x, pos[a].y, pos[a].z); lB.setXYZ(e, pos[b].x, pos[b].y, pos[b].z);
+    heat[e] *= Math.exp(-dt * 1.1);
+    const hv = hovered >= 0 && (a === hovered || b === hovered) ? 0.3 : 0;
+    const len = pos[a].distanceTo(pos[b]);
+    const lejos = Math.min(1, Math.max(0.22, 70 / (len + 1)));
+    const base = (principal[e] ? TK.lineaP : TK.lineaP * TK.lineaS) * pesoHaz[e] * lejos * linesIn * Math.min(filtro[a], filtro[b]);
+    const h = heat[e] * 0.9 * linesIn;
+    lCol.setXYZ(e, LINEA.r * base + hv, LINEA.g * base + hv, LINEA.b * base + hv);
+    lHeat.setXYZ(e, heatCol[e].r * h, heatCol[e].g * h, heatCol[e].b * h);
+    const on = luzEn.get(e);
+    if (on) { lLitPos.setXYZ(e, on.L.p.x, on.L.p.y, on.L.p.z); lLitCol.setXYZ(e, on.L.col.r * on.alive, on.L.col.g * on.alive, on.L.col.b * on.alive); }
+    else lLitCol.setXYZ(e, 0, 0, 0);
+    malLinea[e] += (Math.max(malNota[a], malNota[b]) - malLinea[e]) * malPaso;
+    lMal.setX(e, malLinea[e]);
+  });
+  lA.needsUpdate = lB.needsUpdate = lCol.needsUpdate = lHeat.needsUpdate = lLitPos.needsUpdate = lLitCol.needsUpdate = lMal.needsUpdate = true;
+  const LU = lineMat.uniforms;
+  LU.uTime.value = RM ? 0 : elapsed; LU.uMat.value = MATERIAL[state.material] ?? 0;
+  LU.uWidth.value = TK.ancho; LU.uRadius.value = TK.radio; LU.uGrain.value = TK.material; LU.uLit.value = TK.ilumina;
+  renderer.getDrawingBufferSize(LU.uRes.value); LU.uDpr.value = renderer.getPixelRatio();
+
+  // las galaxias: se ven de lejos y sólo con esa forma
+  visGalaxias += ((view() === 'order.galaxies' ? 1 : 0) * Math.min(1, elapsed / 3) - visGalaxias) * Math.min(1, dt * 2.5);
+  for (const g of galaxias) {
+    g.mesh.visible = visGalaxias > 0.002;
+    g.mesh.material.uniforms.uAlpha.value = visGalaxias * smoothstep(150, 480, camera.position.distanceTo(g.centro)) * TK.galaxia;
+  }
+
+  // la reproducción y las luces
+  if (elapsed > 3.2) stepReplay(dt);
+  let ln = 0;
+  lights.forEach((L, li) => {
+    stepLight(L, dt);
+    const alive = Math.max(0, 1 - Math.max(0, L.idle - 20) / 6);
+    if (alive > 0 && ln < MAXL) { // la luz ilumina los cuadros que toca (P4)
+      frameMat.uniforms.uLP.value[ln].copy(L.p);
+      frameMat.uniforms.uLC.value[ln].set(L.col.r * alive, L.col.g * alive, L.col.b * alive);
+      ln++;
+    }
+    for (let k = 0; k < TRAIL; k++) {
+      const j = li * TRAIL + k, p = L.trail[k];
+      if (!p || alive <= 0 || (RM && k > 0)) { lp.aAlpha.setX(j, 0); continue; }
+      const c = k === 0 ? CALIDO : L.col; // cabeza de tungsteno, estela del color de la sesión
+      lp.position.setXYZ(j, p.x, p.y, p.z); lp.aCol.setXYZ(j, c.r, c.g, c.b);
+      lp.aSize.setX(j, k === 0 ? 7 : 3.2 * (1 - k / TRAIL)); lp.aAlpha.setX(j, alive * (k === 0 ? 1.3 : 0.7 * (1 - k / TRAIL)) * (state.sesion && L.id !== state.sesion ? 0.25 : 1));
+    }
+  });
+  frameMat.uniforms.uLN.value = ln;
+  lp.position.needsUpdate = lp.aCol.needsUpdate = lp.aSize.needsUpdate = lp.aAlpha.needsUpdate = true;
+
+  hovered = fly ? -1 : pick();
+  showTip();
+  updateLabels();
+  if (EV.length) {
+    if (evIdx === 0 && vueltas > 0 && evClock > delayAfter(EV.length - 1) - 0.3) pintarAhora(null, 'vuelve a empezar: la misma actividad, desde el principio');
+    dibujarScore();
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+function smoothstep(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+
+// ── El primer paso (Artu, 26/09 22:15: «que la ventana aparezca dentro de mneme») ──
+// El mensaje que arranca el cuestionario de reglas. Lo da el servidor (servir.mjs): los textos son los de
+// scripts/workspace/first-run.json, su dueño, y «mostrar» dice si rules.md del espacio todavía dice
+// «questionnaire: not offered». Sale una vez por navegador mientras no se haya hecho (?primer-paso=1 la
+// fuerza). Sin servidor que lo sepa, no sale, y Perfil no ofrece volver a verlo.
+const PRIMER_KEY = 'mneme-primer-paso';
+let PP = null;
+let focoAntes = null;
+function abrirPrimerPaso() {
+  if (!PP) return;
+  focoAntes = document.activeElement;
+  $('primerOk').textContent = '';
+  $('primerVelo').hidden = false; $('primerPaso').hidden = false;
+  $('primerCopiar').focus();
+}
+function cerrarPrimerPaso() {
+  $('primerVelo').hidden = true; $('primerPaso').hidden = true;
+  escribirLS(PRIMER_KEY, 'visto');
+  focoAntes?.focus?.();
+}
+$('primerCopiar').addEventListener('click', async () => { $('primerOk').textContent = (await copiar(PP.prompt)) ? PP.copied : ''; });
+$('primerCerrar').addEventListener('click', cerrarPrimerPaso);
+$('primerVelo').addEventListener('click', cerrarPrimerPaso);
+$('verPrimerPaso').addEventListener('click', abrirPrimerPaso);
+// el foco no se escapa de la ventana mientras está abierta (Tab da la vuelta entre sus dos botones)
+$('primerPaso').addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab') return;
+  const [a, b] = [$('primerCopiar'), $('primerCerrar')];
+  if (e.shiftKey && document.activeElement === a) { e.preventDefault(); b.focus(); } else if (!e.shiftKey && document.activeElement === b) { e.preventDefault(); a.focus(); }
+});
+fetch('primer-paso.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then((p) => {
+  PP = p?.textos?.[navigator.language?.toLowerCase().startsWith('es') ? 'es' : 'en'] ?? null;
+  $('tusReglas').hidden = !PP;
+  if (!PP) return;
+  $('primerTitulo').textContent = PP.title;
+  $('primerExplica').innerHTML = PP.explain.split('\n\n').map((x) => `<p>${esc(x)}</p>`).join('');
+  $('primerMensaje').textContent = PP.prompt;
+  $('primerCopiar').textContent = PP.copy;
+  $('primerCerrar').textContent = PP.close;
+  $('primerArchivo').textContent = p.archivo ? `${PP.fileNote} ${p.archivo}` : '';
+  if (new URLSearchParams(location.search).has('primer-paso') || (p.mostrar && leerLS(PRIMER_KEY) !== 'visto')) setTimeout(abrirPrimerPaso, 1800); // después de que la mente se forma
+});
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; renderer.setSize(innerWidth, innerHeight);
+  if (EV.length) { layoutScore(); marcasHora = horas(); }
+  corrimientoMeta(); corrimiento.actual = corrimiento.meta; // al cambiar de tamaño, sin animación
+  if (corrimiento.actual) camera.setViewOffset(innerWidth, innerHeight, corrimiento.actual, 0, innerWidth, innerHeight);
+  else { camera.clearViewOffset(); camera.updateProjectionMatrix(); }
+  acomodarSeccion();
+});
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

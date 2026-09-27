@@ -1,0 +1,4 @@
+#!/bin/sh
+# The command for POSIX shells on Windows (Git Bash, where Claude Code's Bash tool runs):
+# they do not run mneme.cmd by its bare name. Same job as mneme.cmd, next to it.
+exec node "$(dirname "$0")/mneme.js" "$@"

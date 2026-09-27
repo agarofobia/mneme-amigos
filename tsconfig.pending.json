@@ -1,0 +1,6 @@
+{
+  "//": "Typecheck of the acceptance tests in pending/ BEFORE their lote is built (obra, 25/09): the main tsconfig leaves pending/ out on purpose, so their own type errors only showed up at integration. Missing modules (TS2307) and exports (TS2305, TS2724) are expected here: the code does not exist yet.",
+  "extends": "./tsconfig.json",
+  "include": ["test/aceptacion/pending/**/*.mjs", "test/aceptacion/l3-helpers.mjs", "test/helpers/**/*.mjs"],
+  "exclude": []
+}
