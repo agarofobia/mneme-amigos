@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { makeBareRoot } from '../helpers/fixture.mjs';
 import { runEval } from '../../src/eval.js';
 import { loadConfig } from '../../src/config.js';
@@ -140,7 +140,9 @@ test('D-5 ①: wantText inside a marker comment does not count; the same text in
 // check, and its CI would fail on the import. It runs wherever the tool is.
 const EXPORTADOR = fileURLToPath(new URL('../../scripts/export-public.mjs', import.meta.url));
 test('the public export leaves out docs/ and the export tool itself', { skip: !fs.existsSync(EXPORTADOR) && 'the export tool is not in the public tree' }, async () => {
-  const { publicFiles, PRIVATE_PREFIXES } = await import('../../scripts/export-public.mjs');
+  // imported by its path, not a literal: in the public tree the typecheck cannot resolve a file that is not there
+  /** @type {{ publicFiles: (repo: string) => string[], PRIVATE_PREFIXES: string[] }} */
+  const { publicFiles, PRIVATE_PREFIXES } = await import(pathToFileURL(EXPORTADOR).href);
   const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
   for (const p of ['docs/', 'scripts/export-public.mjs', 'test/unit/n25-export-public.test.mjs']) assert.ok(PRIVATE_PREFIXES.includes(p), `${p} is private`);
   const files = publicFiles(repo);
