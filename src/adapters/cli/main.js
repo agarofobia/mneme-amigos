@@ -52,7 +52,10 @@ SET UP
     hooks install|uninstall|status [--settings <settings.json>] [--command <cmd>]
                                            the Claude Code hooks; --command: what they run (default:
                                            node "<this checkout>/bin/${NAME}.js"), {event} marks where the event goes
-    mcp [--root <dir>]... [--read-only]    the MCP server on stdio, for any agent
+    mcp [--root <dir>]... [--read-only] [--session <name>] [--print]
+                                           the MCP server on stdio, for any agent (Claude, Qwen on Ollama,
+                                           Odysseus, Codex...); --session keeps its identity across restarts,
+                                           --print shows the settings to paste in the client
 
 FIND
   Search
@@ -1054,10 +1057,25 @@ async function cmdGui(args) {
 
 /** @param {string[]} args */
 async function cmdMcp(args) {
-  const { values } = parse(args, { root: { type: 'string', multiple: true }, 'read-only': { type: 'boolean' } });
+  const { values } = parse(args, { root: { type: 'string', multiple: true }, 'read-only': { type: 'boolean' }, session: { type: 'string' }, print: { type: 'boolean' } });
+  // Any AI that speaks MCP uses mneme through this (informe QoL 26/09, R6; Artu 27/09: «es agnóstico a la
+  // AI que usen», e.g. Qwen on Ollama inside Odysseus). A client that is not Claude Code has no session
+  // id to hand over, so each start was a new «mcp-xxxx» and, after a restart, the agent could not rewrite
+  // its own sections: --session gives it a name that lasts.
+  if (values.session !== undefined && !/^[\w.-]{1,64}$/.test(values.session)) {
+    throw new UsageError('--session is a name of up to 64 letters, digits, dots, dashes or underscores (e.g. qwen or research-agent)');
+  }
   const roots = manyRoots(values.root, { registered: true });
+  if (values.print) {
+    // what to paste in the client's MCP settings: absolute paths, so it works whatever its PATH is
+    const bin = fileURLToPath(new URL('../../../bin/mneme.js', import.meta.url));
+    const serverArgs = [bin, 'mcp', ...roots.flatMap((r) => ['--root', r.dir]), ...(values.session ? ['--session', values.session] : []), ...(values['read-only'] ? ['--read-only'] : [])];
+    out(JSON.stringify({ mcpServers: { [NAME]: { command: process.execPath, args: serverArgs } } }, null, 2));
+    if (!values.session) err(`Tip: add --session <name> so this AI keeps its identity across restarts (without it, it cannot rewrite its own sections after one).`);
+    return 0;
+  }
   const { startServer } = await import('../mcp/server.js');
-  await startServer({ roots, readOnly: values['read-only'] === true });
+  await startServer({ roots, readOnly: values['read-only'] === true, ...(values.session ? { sessionId: values.session } : {}) });
   return 0;
 }
 

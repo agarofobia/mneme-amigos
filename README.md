@@ -91,13 +91,23 @@ mneme hooks install --command 'command -v mneme >/dev/null 2>&1 || exit 0; mneme
 
 That entry runs Mneme where it is on the PATH and does nothing (exit 0) where it is not. `status`, `uninstall` and `doctor` recognize the entries by the command you gave; on a machine without that install record they still recognize any entry ending in `mneme hook <Event>` or `bin/mneme.js" hook <Event>`. `doctor` warns when an entry calls `mneme` by name and `mneme` is not on the PATH.
 
-For other MCP agents (or for tools in Claude Code), register the server:
+### Any AI, not only Claude
+
+mneme does not care which model is behind the agent: anything that speaks **MCP** (Claude Code, Codex, Cursor, a local model such as **Qwen on Ollama inside Odysseus**…) reads, searches and writes the notes through the same server, with the same guard and history. In Claude Code:
 
 ```bash
 claude mcp add mneme -- mneme mcp --root ~/notes --read-only
 ```
 
-Use `--read-only` in Claude Code when the hooks are installed: writes then go through the native tools, which the hooks already guard. Agents without hooks use the full server (no `--read-only`).
+Use `--read-only` in Claude Code when the hooks are installed: writes then go through the native tools, which the hooks already guard.
+
+**Any other client** uses the full server (no `--read-only`: its writes go through mneme's tools, which is where the guard is), and gives the agent a **name** with `--session`, so it keeps its identity across restarts (without one, each start is a new session and, after a restart, the agent cannot rewrite its own sections). Let mneme print what to paste:
+
+```bash
+mneme mcp --root ~/notes --session qwen --print
+```
+
+It prints a `mcpServers` entry with absolute paths: `command` (node) and `args`. In a client that asks for them one by one (Odysseus: a **stdio** server), copy `command` and `args` as they are. What only Claude Code has: the hooks, which also guard edits made with the agent's own file tools, and the workspace rules (`CLAUDE.md`). With another client, give the agent the same idea in its system prompt: search the notes with `search` before answering, and write them with `write_note` / `edit_note`, never with its own file tools.
 
 ## CLI
 
