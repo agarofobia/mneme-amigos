@@ -70,7 +70,7 @@ test('the MCP door leaves one line per search, via "mcp", with nothing of the qu
   try {
     await call({ query: 'rollback QZXQUERY' });
     await client.callTool({ name: 'read_note', arguments: { path: 'manuals/backups.md' } });
-    await call({ query: 'dale, seguí', reader: 'lexical', k: 3 });
+    await call({ query: 'sí, continúa', reader: 'lexical', k: 3 });
   } finally {
     await client.close();
   }
@@ -84,7 +84,7 @@ test('the MCP door leaves one line per search, via "mcp", with nothing of the qu
   assert.equal(lines[0].k, root.config.search.k, 'k not given: the root default');
   assert.equal(lines[1].session, true, "nothing matched: the server's session answered");
   assert.equal(lines[1].k, 3);
-  for (const p of ['QZXQUERY', 'QZXMCP', 'dale', 'backups', root.dir, path.basename(root.dir)]) assert.ok(!text.includes(p), `leaked: ${p}`);
+  for (const p of ['QZXQUERY', 'QZXMCP', 'continúa', 'backups', root.dir, path.basename(root.dir)]) assert.ok(!text.includes(p), `leaked: ${p}`);
 });
 
 test('the reader in a line is the one asked for, or the default; "session" when it was forced', async () => {

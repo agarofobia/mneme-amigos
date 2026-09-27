@@ -117,7 +117,7 @@ export const USOS = [
   },
   {
     id: 'propio', nombre: 'a tu manera',
-    sirve: 'querés probar otro método: otro embedding, otros números',
+    sirve: 'quieres probar otro método: otro embedding, otros números',
     lee: 'con lo tuyo: un embedding propio (OpenAI, Voyage, Cohere, el que armes) y el ranking a mano',
     lectores: ['rag', 'propio'], vectores: ['bm25', 'api', 'rrf'],
     parche: () => ({ embeddings: { provider: 'module', module: '' }, search: { minCosine: 1 } }),

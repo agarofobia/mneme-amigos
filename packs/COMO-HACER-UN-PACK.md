@@ -4,32 +4,32 @@ Un **pack** cambia cómo se ve Mneme en la galaxia (`mneme galaxia`): los colore
 interfaz, el fondo del espacio, las nebulosas, las estrellas, las líneas, los colores de los grupos y
 los de cada sesión. No cambia nada de tus notas ni de cómo funciona Mneme: es sólo la piel.
 
-Un pack es **una carpeta con datos**: un `pack.json`, y si querés, una hoja de estilo y fuentes.
+Un pack es **una carpeta con datos**: un `pack.json`, y, si quieres, una hoja de estilo y fuentes.
 **Nunca lleva un programa**: Mneme lo revisa antes de usarlo y rechaza cualquier cosa que pueda correr
 código o traer algo de internet (abajo, «Lo que se rechaza»).
 
 ## La forma más fácil: desde la galaxia
 
-1. Abrí la galaxia: `mneme galaxia` (o «Abrir Mneme» en tu espacio de trabajo).
-2. Andá a **opciones** → **apariencia · los packs**. Ahí están todos: los de fábrica y los tuyos.
-3. Escribí un nombre (minúsculas, dígitos y guiones: `mi-pack`) y una línea que diga qué es, y tocá
+1. Abre la galaxia: `mneme galaxia` (o «Abrir Mneme» en tu espacio de trabajo).
+2. Ve a **opciones** → **apariencia · los packs**. Ahí están todos: los de fábrica y los tuyos.
+3. Escribe un nombre (minúsculas, dígitos y guiones: `mi-pack`) y una línea que diga qué es, y pulsa
    **crear con lo que ves**. Se crea tu pack con todos los valores de lo que estás viendo, y queda elegido.
-4. Movelo con el **ajuste fino** (más abajo en opciones: brillo de la nebulosa, líneas, luz, acento,
-   tamaño del texto…) y tocá **guardar el ajuste fino en «mi-pack»**.
-5. Para cambiar lo que el ajuste fino no tiene (el fondo, las nebulosas, los colores de los grupos), editá
-   el `pack.json` a mano: **copiar la carpeta de tus packs** te da dónde está. Guardás, recargás la página.
+4. Ajústalo con el **ajuste fino** (más abajo en opciones: brillo de la nebulosa, líneas, luz, acento,
+   tamaño del texto…) y pulsa **guardar el ajuste fino en «mi-pack»**.
+5. Para cambiar lo que el ajuste fino no tiene (el fondo, las nebulosas, los colores de los grupos), edita
+   el `pack.json` a mano: **copiar la carpeta de tus packs** te da dónde está. Guardas y recargas la página.
 
 Borrar un pack tuyo lo manda a la papelera (`.papelera`, en la misma carpeta): se puede recuperar.
-Los packs de fábrica no se pueden borrar ni pisar; para partir de uno, elegilo y **creá con lo que ves**.
+Los packs de fábrica no se pueden borrar ni sobrescribir; para partir de uno, elígelo y pulsa **crear con lo que ves**.
 
 ## Dónde viven
 
-- **Los tuyos:** en la carpeta de packs de Mneme (Windows: `C:\Users\<vos>\.config\mneme\packs\`),
+- **Los tuyos:** en la carpeta de packs de Mneme (Windows: `C:\Users\<tu usuario>\.config\mneme\packs\`),
   uno por carpeta: `packs\mi-pack\pack.json`. **El nombre de la carpeta y el `"name"` del pack.json
   tienen que ser iguales.**
 - **Los de fábrica:** en la carpeta `packs\` de donde instalaste Mneme (por ejemplo `cianotipo`).
-  Mirá `packs\cianotipo\pack.json` como ejemplo: sólo tokens y escena, sin CSS.
-- Para probar uno sin elegirlo: agregá `?pack=mi-pack` a la dirección de la galaxia.
+  Mira `packs\cianotipo\pack.json` como ejemplo: sólo tokens y escena, sin CSS.
+- Para probar uno sin elegirlo: agrega `?pack=mi-pack` a la dirección de la galaxia.
 
 ## El pack.json
 
@@ -39,7 +39,7 @@ Los packs de fábrica no se pueden borrar ni pisar; para partir de uno, elegilo 
   "name": "mi-pack",
   "version": "0.1.0",
   "description": "Qué es, en una línea.",
-  "author": "vos",
+  "author": "tu nombre",
   "license": "MIT",
   "extends": "cianotipo",
   "tokens": { "--acento": "#9fd3f0" },
@@ -53,14 +53,14 @@ Los packs de fábrica no se pueden borrar ni pisar; para partir de uno, elegilo 
 |---|---|
 | `packFormat` | Siempre `2` para la galaxia (el `1` es de la página vieja, `mneme gui`). |
 | `name` | Minúsculas, dígitos y guiones. Igual que el nombre de la carpeta. |
-| `version`, `description`, `author`, `license` | Para vos y para quien lo reciba. `version` es obligatorio. |
-| `extends` | Opcional: el nombre de otro pack de formato 2. Arrancás de ese y pisás sólo lo que cambiás. |
-| `tokens` | Los colores, letras y medidas de la interfaz (tabla de abajo). **Sólo pongas los que cambiás.** |
-| `escena` | Lo que dibuja el espacio (tabla de abajo). También sólo lo que cambiás. |
+| `version`, `description`, `author`, `license` | Para ti y para quien lo reciba. `version` es obligatorio. |
+| `extends` | Opcional: el nombre de otro pack de formato 2. Partes de ese y reemplazas sólo lo que cambias. |
+| `tokens` | Los colores, letras y medidas de la interfaz (tabla de abajo). **Pon sólo los que cambias.** |
+| `escena` | Lo que dibuja el espacio (tabla de abajo). También sólo lo que cambias. |
 | `styles` | Opcional: hojas `.css` de la carpeta, para lo que los tokens no alcanzan. |
 | `assets` | Opcional: fuentes o imágenes de la carpeta, con un nombre para usarlas desde el CSS. |
 
-Lo que no nombrás queda como en la piel de base (la **cámara oscura**).
+Lo que no nombras queda como en la piel de base (la **cámara oscura**).
 
 ## Los tokens (la interfaz)
 
@@ -128,14 +128,14 @@ ni `url(`.
 
 ## La escena (el espacio)
 
-Va en `"escena"`. Sólo acepta **colores `#rrggbb`**, **números** y **listas** de eso. Si ponés una
+Va en `"escena"`. Sólo acepta **colores `#rrggbb`**, **números** y **listas** de eso. Si pones una
 clave que el dibujo no conoce, la galaxia te lo avisa en opciones y usa el resto.
 
 | Clave | Qué es | Base |
 |---|---|---|
 | `fondo` | El color del espacio | `#050403` |
 | `cielo.intensidad` | Cuánto se ven las nebulosas y las ondas del fondo (0 las apaga) | `1.25` |
-| `cielo.bajo`, `cielo.alto` | El degradé del fondo, de abajo hacia arriba | `#050403` → `#0c0907` |
+| `cielo.bajo`, `cielo.alto` | El degradado del fondo, de abajo hacia arriba | `#050403` → `#0c0907` |
 | `cielo.calida`, `cielo.fria` | Los dos colores de nebulosa | `#160f09`, `#070d0f` |
 | `cielo.onda` | El color de las ondas | `#060503` |
 | `estrellas.cantidad` | Cuántas estrellas (0 a 5000) | `900` |
@@ -148,14 +148,14 @@ clave que el dibujo no conoce, la galaxia te lo avisa en opciones y usa el resto
 | `sinAutor` | El color de una escritura por fuera, sin autor | `#9A938A` |
 | `sinSesion` | El color de una sesión que no está en la lista | `#8A847A` |
 
-Tip: los colores del cielo van **muy oscuros** (se suman encima del fondo). Empezá cerca de los de base.
+Consejo: los colores del cielo van **muy oscuros** (se suman encima del fondo). Empieza cerca de los de base.
 
 ## CSS y fuentes propias
 
 Para lo que los tokens no alcanzan, un `pack.css` en la carpeta y `"styles": ["pack.css"]`. Algunos lugares
 que se pueden vestir: `#tl` (el nombre y el menú), `#menu`, `#seccion` (la sección abierta), `.ventana`
 (las ventanas), `.md` (el texto de una nota), `#partitura`, `#labels .l` (los nombres en el espacio).
-**Ojo:** la galaxia es una vista previa y estos nombres todavía pueden cambiar; lo estable son los tokens.
+**Atención:** la galaxia es una vista previa y estos nombres todavía pueden cambiar; lo estable son los tokens.
 
 Una fuente propia viaja **dentro** del pack (no se permite traerla de internet):
 
@@ -173,7 +173,7 @@ Un pack puede venir de cualquiera, así que Mneme lo trata como algo que no es d
 
 - **Archivos de programa** en la carpeta (`.js`, `.mjs`, `.html`, `.ps1`, `.bat`, `.exe`…): un pack es datos.
 - En el CSS: `@import`, `javascript:`, `expression(`, `<script`, y **cualquier `url()` a internet**
-  (podría avisarle a alguien cada vez que abrís Mneme). Las fuentes e imágenes van en `assets`.
+  (podría avisarle a alguien cada vez que abres Mneme). Las fuentes e imágenes van en `assets`.
 - En los tokens: valores con `;`, `{`, `}`, `<`, `>` o `url(` (podrían escaparse de su lugar).
 - En la escena: cualquier cosa que no sea un color `#rrggbb`, un número o una lista de eso.
 - Archivos fuera de la carpeta del pack, un `extends` a un pack de otro formato, o una cadena de más de 4.
@@ -188,5 +188,5 @@ Cuando algo se rechaza, opciones lo marca **no carga** y dice por qué; la galax
 
 ## Compartir un pack
 
-Comprimí la carpeta del pack (`mi-pack\`, con su `pack.json` adentro) y mandala. Quien la reciba la
+Comprime la carpeta del pack (`mi-pack\`, con su `pack.json` dentro) y envíala. Quien la reciba la
 descomprime en su carpeta de packs y la elige en opciones.

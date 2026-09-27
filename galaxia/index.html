@@ -321,20 +321,20 @@
 <div id="seccion">
   <section class="sec" data-sec="buscar" aria-label="Buscar">
     <h2>Buscar</h2><p class="lead">En la app busca como la IA (léxico + embeddings) y se encienden los cuadros que recibiría. En el boceto, filtra por nombre.</p>
-    <input type="search" id="q" placeholder="escribí…" autocomplete="off">
+    <input type="search" id="q" placeholder="escribe…" autocomplete="off">
     <ul id="resultados"></ul>
   </section>
   <section class="sec" data-sec="orden" aria-label="El orden">
-    <h2>El orden</h2><p class="lead">Cómo se organiza el contexto, y dónde se arma otro. Lo que toques acá es un borrador sobre la configuración vigente: se copia, no se aplica solo.</p>
-    <h3>lo que tenés</h3>
+    <h2>El orden</h2><p class="lead">Cómo se organiza el contexto, y dónde se arma otro. Lo que cambies aquí es un borrador sobre la configuración vigente: se copia, no se aplica solo.</p>
+    <h3>lo que tienes</h3>
     <div id="tenes"></div>
-    <h3>para qué la usás · ◆ recomendado</h3>
+    <h3>para qué la usas · ◆ recomendado</h3>
     <div id="usos"></div>
     <div id="usoDetalle"></div>
     <h3>el recorrido de una consulta</h3>
     <div id="recorrido"></div>
     <h3>cómo lee · el catálogo</h3>
-    <p class="dim" style="font-size:12.5px;margin-top:0">Las formas de leer y de vectorizar que se hablaron el 24/09, y dónde está cada una. La luz marca lo que usa el borrador; tocá una para ver qué hace.</p>
+    <p class="dim" style="font-size:12.5px;margin-top:0">Las formas de leer y de vectorizar que se hablaron el 24/09, y dónde está cada una. La luz marca lo que usa el borrador; toca una para ver qué hace.</p>
     <div id="catalogo"></div>
     <h3>orden visual · ◆ recomendado</h3>
     <div id="ordenVisual">
@@ -350,14 +350,14 @@
     <h3>configuración técnica</h3>
     <p class="dim" style="font-size:12.5px;margin-top:0">Todas las claves de <span class="mono">.mneme/config.json</span>, salvo <span class="mono">embeddings.options</span> (puede llevar credenciales). Cada una se edita en su lugar.</p>
     <div id="tecnica"></div>
-    <h3>qué pasa si lo aplicás</h3>
+    <h3>qué pasa si lo aplicas</h3>
     <ul class="consecuencias" id="consecuencias"></ul>
     <div class="acciones"><button id="copiarConfig">copiar config.json</button><button id="volverVigente">volver a la vigente</button><button id="volverRec">volver al recomendado</button></div>
     <div id="configCopiada"></div>
   </section>
   <section class="sec" data-sec="analisis" aria-label="Análisis"><h2>Análisis</h2><p class="lead">Lo que se midió de la búsqueda: el embedder, el índice y el registro de cada medición. Sólo lectura.</p><div id="analisis"></div></section>
   <section class="sec" data-sec="salud" aria-label="Salud"><h2>Salud</h2><p class="lead">Lo de <span class="mono">audit</span> y <span class="mono">doctor</span>. Si algo se pasa, la palabra «salud» del menú se enciende.</p><div id="salud"></div></section>
-  <section class="sec" data-sec="perfil" aria-label="Perfil"><h2>Perfil</h2><p class="lead">Quién sos para esta raíz y quién más escribe en ella.</p><div id="perfil"></div>
+  <section class="sec" data-sec="perfil" aria-label="Perfil"><h2>Perfil</h2><p class="lead">Quién eres para esta raíz y quién más escribe en ella.</p><div id="perfil"></div>
     <div id="tusReglas" hidden><h3>tus reglas</h3><p class="dim" style="font-size:12.5px">El cuestionario que arma tus primeras reglas se ofrece la primera vez que se abre Mneme.</p><button id="verPrimerPaso">volver a ver el primer paso</button></div></section>
   <section class="sec" data-sec="opciones" aria-label="Opciones">
     <h2>Opciones</h2><p class="lead">Lo de la GUI, no lo de Mneme (eso es El orden).</p>
@@ -371,7 +371,7 @@
     <h3>movimiento</h3><div class="ops" style="display:flex;gap:12px"><button data-op="rm" data-v="0">normal</button><button data-op="rm" data-v="1">reducido</button></div>
     <h3>nitidez</h3><div class="ops" style="display:flex;gap:12px"><button data-op="dpr" data-v="1">1×</button><button data-op="dpr" data-v="1.5">1,5×</button><button data-op="dpr" data-v="2">2×</button></div>
     <h3>ajuste fino</h3>
-    <p class="dim" style="font-size:13px">Un control por token. Movelo hasta que te cierre. Para que quede, guardalo en un pack tuyo (apariencia, arriba): si no, se pierde al recargar. «copiar :root» copia sólo los que cambiaron, con el valor de antes al lado.</p>
+    <p class="dim" style="font-size:13px">Un control por token. Muévelo hasta que te convenza. Para conservarlo, guárdalo en un pack tuyo (apariencia, arriba): si no, se pierde al recargar. «copiar :root» copia sólo los que cambiaron, con el valor de antes al lado.</p>
     <div id="ajustes"></div>
     <div class="acciones"><button id="copiarRoot">copiar :root</button><button id="resetTodo">volver todo a los tokens</button></div>
     <div id="copiado"></div>
@@ -442,8 +442,8 @@ let RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ── El pack (la piel), antes de leer los tokens ─────────────────────────────
 // Un pack es datos (pack.json + CSS + fuentes, nunca un script). Lo valida y lo aplana el servidor
-// del boceto con el mismo cargador de la app (src/gui/packs.js, packFormat 2); acá sólo se aplica:
-// pisa los tokens de :root y lo que el dibujo lee de ESCENA. Sin pack, es la cámara oscura.
+// del boceto con el mismo cargador de la app (src/gui/packs.js, packFormat 2); aquí sólo se aplica:
+// reemplaza los tokens de :root y lo que el dibujo lee de ESCENA. Sin pack, es la cámara oscura.
 const PACK_KEY = 'mneme-boceto-pack';
 const leerLS = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const escribirLS = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
@@ -460,7 +460,7 @@ if (packPedido) {
     document.head.append(st);
   } catch (e) { packError = `«${packPedido}»: ${e.message}`; }
 }
-// Los tokens de :root: la interfaz los usa por CSS y el dibujo los lee acá. Un solo contrato,
+// Los tokens de :root: la interfaz los usa por CSS y el dibujo los lee aquí. Un solo contrato,
 // que el ajuste fino mueve y que un pack puede reemplazar (regla 10: el valor vive en su token).
 const TK = {};
 const rootStyle = document.documentElement.style;
@@ -483,12 +483,12 @@ const HINTS = {
   weight: 'Al centro, lo más conectado. Afuera, lo que casi nadie enlaza.',
 };
 // El dibujo del espacio, en datos: todo color que el dibujo usa y la interfaz no (los de la interfaz son
-// los tokens de :root). Es la parte `escena` de un pack: el pack pisa sólo lo que nombra, y lo que el
+// los tokens de :root). Es la parte `escena` de un pack: el pack reemplaza sólo lo que nombra, y lo que el
 // dibujo no conoce se avisa en Opciones → apariencia (no se ignora callado).
 const ESCENA_BASE = {
   fondo: '#050403',
-  // las nebulosas y las ondas (Artu, 26/09 22:15): bajo/alto es el degradé de base; cálida, fría y onda
-  // se suman encima multiplicadas por la intensidad. 0 las apaga y queda el degradé
+  // las nebulosas y las ondas (Artu, 26/09 22:15): bajo/alto es el degradado de base; cálida, fría y onda
+  // se suman encima multiplicadas por la intensidad. 0 las apaga y queda el degradado
   cielo: { intensidad: 1.25, bajo: '#050403', alto: '#0c0907', calida: '#160f09', fria: '#070d0f', onda: '#060503' },
   estrellas: { cantidad: 900, color: '#d8cbb4', opacidad: 0.42 },
   linea: '#D8CCBA',   // el hilo de las líneas: tinta cálida
@@ -550,14 +550,14 @@ try {
   if (!Array.isArray(data?.nodes) || !Array.isArray(data?.events)) throw new Error('data.json no tiene la forma esperada');
 } catch (e) {
   window.__boceto = { estado: 'error' };
-  mostrarEstado(`<p>No se pudieron leer las notas: ${String(e.message).replace(/</g, '&lt;')}</p><p>Volvé a abrirla con <code>mneme galaxia</code> (y si sigue, <code>mneme doctor</code>).</p>`);
+  mostrarEstado(`<p>No se pudieron leer las notas: ${String(e.message).replace(/</g, '&lt;')}</p><p>Vuelve a abrirla con <code>mneme galaxia</code> (y si sigue, <code>mneme doctor</code>).</p>`);
   throw e;
 }
 if (modo === 'vacio') data = { ...data, nodes: [], edges: [], events: [], sessions: [] };
 if (modo === 'sin-actividad') data = { ...data, events: [], sessions: [] };
 if (!data.nodes.length) {
   window.__boceto = { estado: 'vacio' };
-  mostrarEstado('<p>Todavía no hay notas acá.</p><p>Corré <code>mneme init --adopt</code> en tu carpeta de notas.</p>');
+  mostrarEstado('<p>Todavía no hay notas aquí.</p><p>Ejecuta <code>mneme init --adopt</code> en tu carpeta de notas.</p>');
   throw new Error('sin notas');
 }
 const probe = document.createElement('canvas');
@@ -591,7 +591,7 @@ document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 // El fondo del espacio (Artu, 26/09 22:15): nebulosas y ondas tenues, de poco contraste, en una esfera
 // lejana que acompaña a la cámara. Al orbitar, el fondo se mueve con la vista; al acercarse, no
-// (está siempre «en el infinito»). Reemplaza al degradé plano, que era de pantalla y no se movía.
+// (está siempre «en el infinito»). Reemplaza al degradado plano, que era de pantalla y no se movía.
 scene.background = new THREE.Color(ESCENA.fondo);
 const C = ESCENA.cielo;
 const cieloMat = new THREE.ShaderMaterial({
@@ -1178,7 +1178,7 @@ function marcaEn(x, y) {
   return best;
 }
 if (!EV.length) {
-  $('partitura').innerHTML = '<div class="vacia">Sin actividad todavía: cuando una sesión lea o escriba, aparece acá.</div>';
+  $('partitura').innerHTML = '<div class="vacia">Sin actividad todavía: cuando una sesión lea o escriba, aparece aquí.</div>';
 } else {
   layoutScore(); marcasHora = horas();
   score.addEventListener('pointermove', (e) => {
@@ -1316,8 +1316,8 @@ async function pintarLectura(i) {
   if (selected !== i) return; // se abrió otra mientras cargaba
   if (texto === null) {
     art.innerHTML = textosError
-      ? `<p class="dim">No está el texto de las notas (${esc(textosError)}). Volvé a abrir la galaxia con <span class="mono">mneme galaxia</span>: escribe <span class="mono">textos.json</span> al lado de <span class="mono">data.json</span>.</p>`
-      : '<p class="dim">Esta nota no estaba cuando se exportó: regenerá el export.</p>';
+      ? `<p class="dim">No está el texto de las notas (${esc(textosError)}). Vuelve a abrir la galaxia con <span class="mono">mneme galaxia</span>: escribe <span class="mono">textos.json</span> al lado de <span class="mono">data.json</span>.</p>`
+      : '<p class="dim">Esta nota no estaba cuando se exportó: regenera el export.</p>';
     return;
   }
   if (!texto.trim()) { art.innerHTML = '<p class="dim">La nota está vacía.</p>'; return; }
@@ -1405,7 +1405,7 @@ $('notaFuente').addEventListener('keydown', (e) => {
 });
 $('copiarNota').addEventListener('click', async () => {
   const ok = await copiar($('notaFuente').value);
-  $('editorEstado').textContent = ok ? 'copiado: pegalo en la nota' : 'no se pudo copiar: seleccioná el texto y copialo a mano';
+  $('editorEstado').textContent = ok ? 'copiado: pégalo en la nota' : 'no se pudo copiar: selecciona el texto y cópialo a mano';
 });
 $('descartarNota').addEventListener('click', async () => {
   const f = $('notaFuente'); borradores.delete(f.dataset.rel);
@@ -1574,7 +1574,7 @@ $('q').addEventListener('input', () => {
 });
 $('q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && hits.length) flyTo(hits[0]); });
 
-// ── El orden (mapa ①.d): lo que tenés, para qué la usás, el recorrido, el catálogo y la técnica ──
+// ── El orden (mapa ①.d): lo que tienes, para qué la usas, el recorrido, el catálogo y la técnica ──
 // Todo lo que se toca es un BORRADOR sobre la config vigente: se copia, no se aplica solo (la app
 // lo escribe por la librería con autor «gui»; el boceto no tiene servidor).
 const VIG = S?.config ?? null, DEF = S?.defaults ?? null, U = S?.usos ?? null;
@@ -1633,11 +1633,11 @@ function veredicto(uso) {
 }
 function porQueSinMedir(u) {
   const val = U.validez.find((v) => v.id === u.id);
-  if (!val.valido) return `No se puede medir así: ${esc(val.motivo)}. Elegí el archivo en la configuración técnica.`;
+  if (!val.valido) return `No se puede medir así: ${esc(val.motivo)}. Elige el archivo en la configuración técnica.`;
   const c = configDeUso(u), e = c.embeddings;
   if (cambiaEmbedder(VIG, c)) {
     const falta = e.provider === 'ollama' && U.modelos && !U.modelos.includes(e.model) ? ` ${num(e.model)} no está en tu Ollama: <span class="mono">ollama pull ${esc(e.model)}</span> (≈ 1,2 GB).` : '';
-    return `Sin medir en esta raíz: cambia el embedder a ${num(e.model || e.module)}, y medirlo acá reescribiría los vectores que usan las sesiones abiertas. Se mide en una copia de la raíz.${falta}`;
+    return `Sin medir en esta raíz: cambia el embedder a ${num(e.model || e.module)}, y medirlo aquí reescribiría los vectores que usan las sesiones abiertas. Se mide en una copia de la raíz.${falta}`;
   }
   return `Sin medir en esta raíz: <span class="mono">node medir-analisis.mjs &lt;raíz&gt; --uso ${esc(u.id)}</span>`;
 }
@@ -1651,10 +1651,10 @@ function renderUsos() {
     h = `<p>◆ <b>${esc(r.nombre)}</b>, porque ${esc(U.recomendado.porque)}.</p>`;
     const v = veredicto(rec);
     if (p && p.id !== rec) h += v
-      ? `<p style="font-size:13px">La vigente se parece a <b>${esc(p.nombre)}</b>. <span class="${v.gana ? '' : 'cambio'}">Medido acá: ${esc(v.frase)}.</span> <span class="dim">El ◆ sale de las señales; la medición manda.</span></p>`
-      : `<p class="dim" style="font-size:13px">La vigente se parece a <b>${esc(p.nombre)}</b>. Que ${esc(r.nombre)} rinda más acá es una hipótesis de la investigación, no una medición: ${porQueSinMedir(r).replace(/^Sin medir en esta raíz: /, '')}</p>`;
+      ? `<p style="font-size:13px">La vigente se parece a <b>${esc(p.nombre)}</b>. <span class="${v.gana ? '' : 'cambio'}">Medido aquí: ${esc(v.frase)}.</span> <span class="dim">El ◆ sale de las señales; la medición manda.</span></p>`
+      : `<p class="dim" style="font-size:13px">La vigente se parece a <b>${esc(p.nombre)}</b>. Que ${esc(r.nombre)} rinda más aquí es una hipótesis de la investigación, no una medición: ${porQueSinMedir(r).replace(/^Sin medir en esta raíz: /, '')}</p>`;
     else if (!p) h += '<p class="dim" style="font-size:13px">La vigente no se parece a ningún uso: está hecha a medida.</p>';
-    h += '<p class="dim" style="font-size:13px">Elegí un uso para ver qué cambia.</p>';
+    h += '<p class="dim" style="font-size:13px">Elige un uso para ver qué cambia.</p>';
   } else {
     const u = usoDe(usoElegido), medido = lineaCorridas(u.id), vig = lineaCorridas('vigente');
     h = `<div class="paso"><span class="sc">sirve cuando</span>${esc(u.sirve)}</div><div class="paso"><span class="sc">lee con</span>${esc(u.lee)}</div>`;
@@ -1811,12 +1811,12 @@ $('copiarConfig').addEventListener('click', async () => {
   // El reglamento del espacio («Changing how Mneme works») le dice a Claude cómo aplicarlo: con el OK de
   // la persona, fusionando, y con mneme doctor. El servidor de búsqueda lee la config al arrancar
   // (informe QoL 26/09: no la relee en la sesión), por eso se reabre Claude Code.
-  const pie = 'Pegáselo a Claude en tu espacio: te muestra el cambio, lo fusiona en .mneme/config.json de tu carpeta de notas con tu OK y lo revisa con mneme doctor. Después abrí de nuevo Claude Code para que la búsqueda lo tome.';
+  const pie = 'Pégaselo a Claude (o a tu IA) en tu espacio: te muestra el cambio, lo fusiona en .mneme/config.json de tu carpeta de notas con tu aprobación y lo revisa con mneme doctor. Después abre de nuevo tu IA para que la búsqueda lo tome.';
   $('configCopiada').textContent = `${texto}\n${pie}`;
   try {
     await Promise.race([navigator.clipboard.writeText(texto), new Promise((_, no) => setTimeout(() => no(new Error('sin respuesta')), 1500))]);
     $('configCopiada').textContent = `copiado ✓\n${texto}\n${pie}`;
-  } catch { $('configCopiada').textContent = `(no se pudo copiar solo: seleccionalo)\n${texto}\n${pie}`; }
+  } catch { $('configCopiada').textContent = `(no se pudo copiar solo: selecciónalo)\n${texto}\n${pie}`; }
 });
 function renderAnalisis() {
   const el = $('analisis'), A = S?.analisis;
@@ -1835,9 +1835,9 @@ function renderAnalisis() {
     h += '</ul>';
   }
   h += '<h3>registro de mediciones</h3>';
-  h += !A.registro.length ? '<p>Todavía no se midió. Corré <span class="mono">mneme eval &lt;casos.json&gt;</span>.</p>'
+  h += !A.registro.length ? '<p>Todavía no se midió. Ejecuta <span class="mono">mneme eval &lt;casos.json&gt;</span>.</p>'
     : `<ul class="registro">${[...A.registro].reverse().map((r) => `<li><span class="mono">${cuando(r.fecha)}</span><span><span class="mono">${esc(r.juego)}</span> · ${esc(r.uso && r.uso !== 'vigente' ? usoDe(r.uso)?.nombre ?? r.uso : 'la vigente')} · ${esc(r.lector)}${r.degradado ? ` <span class="dim">(${esc(r.degradado)})</span>` : ''}<br><span class="dim">nota</span> ${num(x(r.nota))} · <span class="dim">sección</span> ${num(x(r.seccion))} · <span class="dim">ajenos</span> ${num(x(r.ajenos))}</span></li>`).join('')}</ul>`;
-  h += '<p class="dim" style="font-size:12.5px;margin-top:14px">Hoy no hay registro: <span class="mono">mneme eval --results</span> escribe los casos de una corrida y pisa el archivo. Este sale de <span class="mono">medir-analisis.mjs</span>; en la app, cada corrida se agrega a <span class="mono">.mneme/run/evals.jsonl</span>.</p>';
+  h += '<p class="dim" style="font-size:12.5px;margin-top:14px">Hoy no hay registro: <span class="mono">mneme eval --results</span> escribe los casos de una corrida y sobrescribe el archivo. Este sale de <span class="mono">medir-analisis.mjs</span>; en la app, cada corrida se agrega a <span class="mono">.mneme/run/evals.jsonl</span>.</p>';
   el.innerHTML = h;
 }
 function renderSalud() {
@@ -1852,9 +1852,9 @@ function renderSalud() {
 }
 function renderPerfil() {
   const p = S?.perfil; if (!p) { $('perfil').innerHTML = '<p class="dim">El export no trae el perfil.</p>'; return; }
-  $('perfil').innerHTML = `<h3>vos</h3><p>${num(p.vos)}</p><p class="dim" style="font-size:12.5px">Así se firman tus escrituras en el libro: usuario@máquina.</p>
-    <h3>quién escribe acá</h3><ul>${p.autores.map((a) => `<li><span class="mono"${a.quien === p.vos ? ' style="color:var(--acento)"' : ''}>${esc(a.quien)}</span> <span class="dim">· ${esc(a.agente)}</span><br>${num(a.escrituras)} <span class="dim">escrituras</span>${a.adopciones ? ` · ${num(a.adopciones)} <span class="dim">adoptadas al instalar</span>` : ''} <span class="dim">· la última ${cuando(a.ultimo)}</span></li>`).join('')}</ul>
-    <h3>raíces que gobernás</h3><ul>${p.raices.map((r) => `<li class="mono">${esc(r)}</li>`).join('') || '<li class="dim">Ninguna registrada.</li>'}</ul>`;
+  $('perfil').innerHTML = `<h3>tú</h3><p>${num(p.tu)}</p><p class="dim" style="font-size:12.5px">Así se firman tus escrituras en el libro: usuario@máquina.</p>
+    <h3>quién escribe aquí</h3><ul>${p.autores.map((a) => `<li><span class="mono"${a.quien === p.tu ? ' style="color:var(--acento)"' : ''}>${esc(a.quien)}</span> <span class="dim">· ${esc(a.agente)}</span><br>${num(a.escrituras)} <span class="dim">escrituras</span>${a.adopciones ? ` · ${num(a.adopciones)} <span class="dim">adoptadas al instalar</span>` : ''} <span class="dim">· la última ${cuando(a.ultimo)}</span></li>`).join('')}</ul>
+    <h3>raíces que gobiernas</h3><ul>${p.raices.map((r) => `<li class="mono">${esc(r)}</li>`).join('') || '<li class="dim">Ninguna registrada.</li>'}</ul>`;
 }
 renderOrden(); renderAnalisis(); renderSalud(); renderPerfil();
 
@@ -1939,7 +1939,7 @@ $('copiarRoot').addEventListener('click', async () => {
   try {
     await Promise.race([navigator.clipboard.writeText(texto), new Promise((_, no) => setTimeout(() => no(new Error('sin respuesta')), 1500))]);
     $('copiado').textContent = `copiado ✓\n${texto}`;
-  } catch { $('copiado').textContent = `(no se pudo copiar solo: seleccionalo)\n${texto}`; }
+  } catch { $('copiado').textContent = `(no se pudo copiar solo: selecciónalo)\n${texto}`; }
 });
 $('resetTodo').addEventListener('click', () => {
   for (const [, t] of AJUSTES) rootStyle.removeProperty(t);
@@ -1991,7 +1991,7 @@ async function pintarPacks() {
   const info = [];
   if (packError) info.push(`<span class="cambio">No se pudo aplicar el pack ${esc(packError)}</span>. Se ve la cámara oscura.`);
   if (escenaDesconocida.length) info.push(`<span class="cambio">El dibujo no conoce ${escenaDesconocida.map((k) => `<span class="mono">escena.${esc(k)}</span>`).join(', ')}</span>: ${escenaDesconocida.length === 1 ? 'no se usa' : 'no se usan'}.`);
-  if (!lista) info.push('Para administrar los packs, abrí la galaxia con <span class="mono">mneme galaxia</span>.');
+  if (!lista) info.push('Para administrar los packs, abre la galaxia con <span class="mono">mneme galaxia</span>.');
   $('packInfo').innerHTML = info.join(' ');
   $('packNuevo').hidden = !lista; $('copiarCarpeta').hidden = !carpetaPacks;
   $('guardarAjuste').hidden = !PACK?.propio;
@@ -2019,7 +2019,7 @@ $('crearPack').addEventListener('click', async () => {
 });
 $('guardarAjuste').addEventListener('click', async () => {
   const cambios = ajustesCambiados();
-  if (!cambios.length) { avisoPack('El ajuste fino no cambió nada todavía: movelo en «ajuste fino», acá abajo.'); return; }
+  if (!cambios.length) { avisoPack('El ajuste fino no cambió nada todavía: muévelo en «ajuste fino», aquí abajo.'); return; }
   try {
     await accionPack('guardar', { nombre: PACK.name, tokens: Object.fromEntries(cambios.map((t) => [t, valorDe(t)])) });
     for (const t of cambios) rootStyle.removeProperty(t);

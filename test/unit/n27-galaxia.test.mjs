@@ -117,7 +117,7 @@ test('el servidor: exporta, dice el primer paso, y cuida las escrituras de packs
   assert.equal(leido.tokens['--acento'], '#ff0000');
   assert.equal(leido.escena.fondo, '#101010');
   assert.equal(leido.propio, true);
-  assert.equal((await pedir(p, 'POST', '/packs/crear', { body: nuevo, headers: con })).status, 422, 'no pisa uno que existe');
+  assert.equal((await pedir(p, 'POST', '/packs/crear', { body: nuevo, headers: con })).status, 422, 'no sobrescribe uno que existe');
   const roto = await pedir(p, 'POST', '/packs/crear', { body: { ...nuevo, nombre: 'roto', tokens: { '--acento': 'red;} body{display:none' } }, headers: con });
   assert.equal(roto.status, 422);
   assert.match(roto.json.error, /--acento/);

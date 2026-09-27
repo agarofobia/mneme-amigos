@@ -121,7 +121,7 @@ for (const d of readDenials(root)) {
 events.sort((a, b) => a.t.localeCompare(b.t));
 // Vencida o reemplazada ENTERA (frontmatter), para la ficha de la nota (STALE). NO pinta las líneas de
 // rojo: es el ciclo normal de una nota, no algo mal (mapa ⑥.9). Una sección vieja adentro de una nota
-// vigente tampoco cuenta acá: es historia bien marcada.
+// vigente tampoco cuenta aquí: es historia bien marcada.
 const hoy = new Date();
 const vencida = rels.map((rel) => {
   try { return staleness(parseNote(fs.readFileSync(`${root.dir}/${rel}`, 'utf8')), null, hoy, root.config.metadataAliases)?.reason ?? null; } catch { return null; }
@@ -403,7 +403,7 @@ function sistema() {
   }
   let raices = [];
   try { raices = listRegisteredRoots().map((r) => (typeof r === 'string' ? r : r.dir)); } catch { /* sin registro */ }
-  const perfil = { vos: `${os.userInfo().username}@${os.hostname()}`, autores: [...autores.values()].sort((x, y) => y.escrituras - x.escrituras), raices };
+  const perfil = { tu: `${os.userInfo().username}@${os.hostname()}`, autores: [...autores.values()].sort((x, y) => y.escrituras - x.escrituras), raices };
   return { config, defaults, usos, analisis: { vectores, juegos, registro }, salud, perfil };
 }
 

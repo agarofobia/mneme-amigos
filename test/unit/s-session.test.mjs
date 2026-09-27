@@ -17,7 +17,7 @@ import { writeNote } from '../../src/store.js';
 
 isolateHome();
 delete process.env.CLAUDE_CODE_SESSION_ID;
-const CONT = 'dale, seguí';
+const CONT = 'sí, continúa';
 const MIN = 60e3;
 /** @typedef {import('../../src/types.js').Root} Root */
 /** @typedef {import('../../src/types.js').SearchHit} SearchHit */

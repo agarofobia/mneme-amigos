@@ -1,6 +1,6 @@
 // El registro del análisis (mapa ①.c, Análisis): corre `runEval` de Mneme sobre cada juego de
 // casos y AGREGA una línea por juego a analisis.jsonl. Hoy no hay registro: `mneme eval --results`
-// escribe los casos de una corrida y pisa el archivo (propuesta de producto: .mneme/run/evals.jsonl);
+// escribe los casos de una corrida y sobrescribe el archivo (propuesta de producto: .mneme/run/evals.jsonl);
 // esto es el boceto de ese registro.
 // Con `--uso <id>` (mapa ①.d, Probar) mide un uso de usos.mjs: le cambia la config EN MEMORIA y
 // corre los mismos juegos. Se niega si el uso cambia el embedder o el corpus: medirlo reescribiría
@@ -48,18 +48,18 @@ if (usoId) {
   if (cambiaEmbedder(root.config, config)) {
     const e = config.embeddings;
     console.error([
-      `«${uso.nombre}» cambia el embedder (${e.provider} · ${e.model}): medirlo acá reescribiría los vectores de la raíz,`,
+      `«${uso.nombre}» cambia el embedder (${e.provider} · ${e.model}): medirlo aquí reescribiría los vectores de la raíz,`,
       'y las sesiones abiertas volverían a embeber todo con el suyo. Se mide en una copia:',
-      `  1. copiá la raíz a una carpeta temporal (notas y .mneme/)`,
-      e.provider === 'ollama' ? `  2. ollama pull ${e.model}` : '  2. dejá listo el módulo del embedder',
-      `  3. poné la config del uso en <copia>/.mneme/config.json y corré: mneme index --root <copia>`,
+      `  1. copia la raíz a una carpeta temporal (notas y .mneme/)`,
+      e.provider === 'ollama' ? `  2. ollama pull ${e.model}` : '  2. deja listo el módulo del embedder',
+      `  3. pon la config del uso en <copia>/.mneme/config.json y ejecuta: mneme index --root <copia>`,
       `  4. node medir-analisis.mjs <copia> --uso ${uso.id}`,
     ].join('\n'));
     process.exit(3);
   }
   const probada = { ...root, config };
   if (listNotes(probada).join('\n') !== notas.join('\n')) {
-    console.error(`«${uso.nombre}» cambia qué notas entran al corpus: medirlo acá reescribiría el índice léxico de la raíz. Se mide en una copia.`);
+    console.error(`«${uso.nombre}» cambia qué notas entran al corpus: medirlo aquí reescribiría el índice léxico de la raíz. Se mide en una copia.`);
     process.exit(3);
   }
   root = probada;

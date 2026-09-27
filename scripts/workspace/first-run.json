@@ -1,10 +1,10 @@
 {
   "es": {
     "title": "Mneme: el primer paso",
-    "explain": "Mneme ya está instalado. Guarda la historia de tus notas y deja que varias ventanas de Claude trabajen en ellas sin pisarse.\n\nPara arrancar con reglas tuyas: abrí Claude Code en tu espacio de trabajo y pegale este mensaje. Te va a hacer 10 preguntas cortas (unos 5 minutos) y te propone reglas; vos elegís cuáles quedan.",
-    "prompt": "Hola, recién instalé Mneme. Haceme el cuestionario para armar mis primeras reglas.",
+    "explain": "Mneme ya está instalado. Guarda la historia de tus notas y permite que varias ventanas de IA trabajen en ellas sin sobrescribirse.\n\nPara empezar con reglas propias: abre Claude Code (o tu IA) en tu espacio de trabajo y pégale este mensaje. Te hará 10 preguntas cortas (unos 5 minutos) y te propondrá reglas; tú eliges cuáles se quedan.",
+    "prompt": "Hola, acabo de instalar Mneme. Hazme el cuestionario para armar mis primeras reglas.",
     "copy": "Copiar el mensaje",
-    "copied": "Copiado. Pegalo en Claude Code.",
+    "copied": "Copiado. Pégalo en Claude Code o en tu IA.",
     "close": "Cerrar",
     "file": "EMPEZAR.txt",
     "fileNote": "Si cerraste la ventana sin copiarlo, el mensaje también quedó en"

@@ -36,7 +36,7 @@ Each says **why** it is asked, the **rule** it can produce, good rules from typi
 
 **1. Language.** "I'll answer you in <their language>. Should anything be different: how formal I am, a regional variant, notes in another language, words that stay as they are (code, terms of your field)?"
 - Why: `CLAUDE.md` already answers in their language; only the exceptions make a rule. Rule: language or register.
-- E.g. `Use "vos" (Rioplatense Spanish), never "tú".` · `Write notes in English even when we talk in Spanish.`
+- E.g. `Use "usted" with me, never "tú".` · `Write notes in English even when we talk in Spanish.`
 - No rule: "just my language", "whatever".
 
 **2. Length.** "When you ask me something, what works better: the short answer and you ask for more, or the full explanation from the start?"

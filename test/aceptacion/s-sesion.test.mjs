@@ -13,7 +13,7 @@ import { search } from '../../src/search.js';
 import { writeNote } from '../../src/store.js';
 
 isolateHome();
-const CONT = 'dale, seguí'; // a continuation: none of its words is in the invented (English) corpus
+const CONT = 'sí, continúa'; // a continuation: none of its words is in the invented (English) corpus
 const MIN = 60e3;
 /** @typedef {Awaited<ReturnType<typeof adoptedRoot>>} Root */
 /** Reads recorded by the Read hook, written with explicit times (the hook stamps "now"). @param {Root} root @param {string} session @param {Array<[string, number]>} lines */

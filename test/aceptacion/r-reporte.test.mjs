@@ -56,7 +56,7 @@ test('an empty search is 0 hits; one the session reader answered says so', async
   const root = await adoptedRoot();
   await cli(home, ['search', 'zzqqxx wwvvyy', '--root', root.dir]);
   reads(root.dir, 'ses-r', ['manuals/backups.md', 'projects/beta.md']);
-  const cont = await cli(home, ['search', 'dale, seguí', '--root', root.dir, '--session', 'ses-r']);
+  const cont = await cli(home, ['search', 'sí, continúa', '--root', root.dir, '--session', 'ses-r']);
   assert.equal(cont.code, 0, cont.stderr);
   const [vacia, sesion] = lines(home).map((l) => JSON.parse(l));
   assert.equal(vacia.hits, 0);
@@ -107,7 +107,7 @@ test('privacy: what was planted in names, text, the query, the session and the p
   assert.equal((await writeNote(root, 'privado/QZXNOTA.md', '# QZXTITULO\n\nQZXCUERPO lives here.\n', { author, reason: 'test' })).ok, true);
   reads(root.dir, 'ses-QZXSES', ['privado/QZXNOTA.md']);
   await cli(home, ['search', 'QZXTITULO QZXCUERPO', '--root', root.dir]);
-  await cli(home, ['search', 'dale, seguí', '--root', root.dir, '--session', 'ses-QZXSES']);
+  await cli(home, ['search', 'sí, continúa', '--root', root.dir, '--session', 'ses-QZXSES']);
   const r = await cli(home, ['report', '--root', root.dir]);
   assert.equal(r.code, 0, r.stderr);
   const everything = r.stdout + fs.readFileSync(logFile(home), 'utf8');

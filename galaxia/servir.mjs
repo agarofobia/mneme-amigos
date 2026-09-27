@@ -3,7 +3,7 @@
 //      (lo corre `mneme galaxia`; el instalador deja «Abrir Mneme.cmd» en el espacio)
 //
 // - Los datos (data.json, textos.json) van a <home de Mneme>/galaxia/, no a la carpeta del programa.
-// - El primer paso: la página lo pide acá. Se muestra mientras rules.md del espacio diga
+// - El primer paso: la página lo pide aquí. Se muestra mientras rules.md del espacio diga
 //   «questionnaire: not offered»; los textos son los de scripts/workspace/first-run.json (su dueño).
 // - Los packs se leen y se validan con src/gui/packs.js (packFormat 2), el mismo cargador de la app.
 //   Los de la persona viven en <home>/packs/<nombre>/: la página los crea, les guarda el ajuste fino y
@@ -73,7 +73,7 @@ function listar() {
 }
 
 // Escribe un pack.json en una carpeta aparte, lo valida con el cargador de la app y recién ahí lo pone
-// en su lugar: un pack roto nunca reemplaza a uno que andaba.
+// en su lugar: un pack roto nunca reemplaza a uno que funcionaba.
 function escribirPack(name, manifiesto) {
   const tmp = path.join(PACKS_PROPIOS, `.nuevo-${crypto.randomBytes(4).toString('hex')}`);
   const destino = path.join(PACKS_PROPIOS, name);
@@ -95,13 +95,13 @@ const ACCIONES = {
   // un pack nuevo con lo que se ve: los tokens y la escena que manda la página
   crear({ nombre, descripcion, tokens, escena }) {
     if (!NOMBRE.test(nombre ?? '')) throw new Error('El nombre va en minúsculas, dígitos y guiones (por ejemplo: mi-pack).');
-    if (listPacks().some((p) => p.name === nombre)) throw new Error(`Ya hay un pack «${nombre}». Elegí otro nombre.`);
+    if (listPacks().some((p) => p.name === nombre)) throw new Error(`Ya hay un pack «${nombre}». Elige otro nombre.`);
     escribirPack(nombre, { packFormat: 2, name: nombre, version: '0.1.0', description: String(descripcion ?? '').slice(0, 300) || 'Mi pack.', tokens: tokens ?? {}, escena: escena ?? {} });
     return { name: nombre };
   },
   // el ajuste fino de Opciones, sobre un pack propio: se suman los tokens cambiados
   guardar({ nombre, tokens }) {
-    if (!NOMBRE.test(nombre ?? '') || !esPropio(nombre)) throw new Error('Sólo se guarda en un pack tuyo: los de fábrica no se tocan (creá uno con lo que ves).');
+    if (!NOMBRE.test(nombre ?? '') || !esPropio(nombre)) throw new Error('Sólo se guarda en un pack tuyo: los de fábrica no se tocan (crea uno con lo que ves).');
     const m = JSON.parse(fs.readFileSync(path.join(PACKS_PROPIOS, nombre, 'pack.json'), 'utf8'));
     escribirPack(nombre, { ...m, tokens: { ...(m.tokens ?? {}), ...(tokens ?? {}) } });
     return { name: nombre };
@@ -161,10 +161,10 @@ servidor.on('error', (e) => {
 });
 servidor.on('listening', () => {
   const url = `http://127.0.0.1:${puerto}/`;
-  console.log(`\nMneme está abierto en ${url}\nDejá esta ventana abierta mientras lo uses; cerrala (o Ctrl+C) para apagarlo.`);
+  console.log(`\nMneme está abierto en ${url}\nDeja esta ventana abierta mientras lo uses; ciérrala (o pulsa Ctrl+C) para apagarlo.`);
   if (values.abrir) {
     const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
-    try { spawn(cmd, args, { detached: true, stdio: 'ignore' }).on('error', () => console.log(`Abrilo vos: ${url}`)).unref(); } catch { console.log(`Abrilo vos: ${url}`); }
+    try { spawn(cmd, args, { detached: true, stdio: 'ignore' }).on('error', () => console.log(`Ábrelo tú: ${url}`)).unref(); } catch { console.log(`Ábrelo tú: ${url}`); }
   }
 });
 servidor.listen(puerto, '127.0.0.1');
